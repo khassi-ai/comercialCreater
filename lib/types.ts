@@ -78,3 +78,4 @@ export interface UsageLogRecord {
   details?: Record<string, any>;
   created_at?: string;
 }
+

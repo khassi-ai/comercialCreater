@@ -94,3 +94,4 @@ export const ImpactHeading: React.FC<ImpactHeadingProps> = ({
     </div>
   );
 };
+

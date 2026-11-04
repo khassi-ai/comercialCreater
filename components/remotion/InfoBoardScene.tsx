@@ -136,3 +136,4 @@ export const InfoBoardScene: React.FC<InfoBoardProps> = ({ infoBoard }) => {
     </div>
   );
 };
+

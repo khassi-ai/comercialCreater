@@ -82,3 +82,4 @@ export const BackgroundMedia: React.FC<BackgroundMediaProps> = ({
     </AbsoluteFill>
   );
 };
+

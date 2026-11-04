@@ -95,7 +95,7 @@ export async function synthesizeNarrationAudio({
       const prompt = `以下の日本語文章を、広告動画のナレーションとしてハッキリと力強く、魅力的に読み上げてください。\n\n「${text}」`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash", // TTS対応モデル
+        model: "gemini-3.8-flash", // 最新の推奨モデル
         contents: prompt,
         config: {
           responseModalities: ["AUDIO"],
@@ -174,3 +174,4 @@ export async function synthesizeNarrationAudio({
     durationInFrames: Math.round(targetSec * 30),
   };
 }
+

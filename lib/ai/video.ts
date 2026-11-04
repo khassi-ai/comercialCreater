@@ -30,9 +30,9 @@ export async function generateSceneBackgroundMedia({
   if (apiKey) {
     try {
       const ai = new GoogleGenAI({ apiKey });
-      // 画像または動画生成の試行 (Imagen / Gemini Flash Image)
+      // 画像または動画生成の試行 (Gemini Flash Image / Imagen)
       const res = await ai.models.generateContent({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-3.8-flash",
         contents: `Generate a visually stunning background video thumbnail or keyframe: ${fullPrompt}`,
       });
 
@@ -85,3 +85,4 @@ export async function generateSceneBackgroundMedia({
     mode: "image",
   };
 }
+

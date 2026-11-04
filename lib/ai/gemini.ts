@@ -91,3 +91,4 @@ ${lpText}
     throw new Error("シナリオJSONの生成に失敗しました: " + err.message);
   }
 }
+

@@ -94,3 +94,4 @@ export const CmComposition: React.FC<{ scenario: ScenarioData }> = ({
     </AbsoluteFill>
   );
 };
+

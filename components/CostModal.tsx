@@ -185,3 +185,4 @@ export const CostModal: React.FC<CostModalProps> = ({
     </div>
   );
 };
+

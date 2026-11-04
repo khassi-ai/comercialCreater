@@ -64,3 +64,4 @@ export const AnimatedSubtitle: React.FC<AnimatedSubtitleProps> = ({
     </div>
   );
 };
+

@@ -208,3 +208,4 @@ export const Step3ProgressAndResult: React.FC<Step3ProgressAndResultProps> = ({
     </div>
   );
 };
+
