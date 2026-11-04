@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>20秒CM自動生成スタジオ (Web UI + Remotion)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background-color: #0b0f19;
+      color: #f1f5f9;
+    }
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-32">
+  <!-- Top Header -->
+  <header class="sticky top-0 z-30 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 px-6 py-3.5">
+    <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-red-600 flex items-center justify-center text-xl font-black shadow-lg shadow-red-600/20">
+          🎬
+        </div>
+        <div>
+          <h1 class="text-lg md:text-xl font-black tracking-tight text-white flex items-center gap-2.5">
+            20秒CM自動生成スタジオ
+            <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              Gemini + Remotion
+            </span>
+          </h1>
+          <p class="text-xs text-slate-400">
+            告知文コピペで4カット企画・TTS音声尺計測・背景生成・インフォボード合成まで一貫制作
+          </p>
+        </div>
+      </div>
+
+      <!-- API Key Status & Quick Save -->
+      <div class="flex items-center gap-3">
+        <button
+          id="apiKeyBadge"
+          type="button"
+          onclick="refreshApiKeyStatus()"
+          title="クリックしてAPIキー設定状態を再確認"
+          class="text-xs font-bold px-3 py-1.5 rounded-lg border flex items-center gap-1.5 bg-slate-900 border-slate-700 text-slate-300 cursor-pointer hover:opacity-90 transition"
+        >
+          <span>🔑 API状態を確認中...</span>
+        </button>
+        <button
+          id="saveScenarioBtn"
+          onclick="saveCurrentScenario(true)"
+          class="text-xs font-bold px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5"
+        >
+          💾 編集内容を保存
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Toast Notification -->
+  <div id="toastContainer" class="fixed top-20 right-6 z-50 flex flex-col gap-2 max-w-md pointer-events-none"></div>
+
+  <!-- Main Workspace Container -->
+  <main class="max-w-[1600px] mx-auto px-4 md:px-6 pt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- Left Column: Announcement Copy-Paste & Mode Settings (4 cols on lg) -->
+    <section class="lg:col-span-4 flex flex-col gap-5">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-base font-black text-white flex items-center gap-2">
+            <span class="text-amber-400">STEP 1</span> 原稿コピペ ＆ モード設定
+          </h2>
+          <button
+            type="button"
+            onclick="loadSampleAnnouncement()"
+            class="text-xs font-bold px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition"
+          >
+            📋 サンプル告知文を入れる
+          </button>
+        </div>
+
+        <!-- Raw Announcement Textarea -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5">
+            イベント告知文・Webページ原稿（丸ごとコピペOK）
+          </label>
+          <textarea
+            id="rawAnnouncementInput"
+            rows="9"
+            placeholder="ここにイベント告知ページのテキストやMarkdownをそのまま貼り付けてください..."
+            class="w-full rounded-xl bg-slate-950 border border-slate-700/80 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-xs leading-relaxed text-slate-100 p-3.5 outline-none transition"
+          ></textarea>
+        </div>
+
+        <!-- ① CM Type Toggle (Dated vs Evergreen) -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5">
+            CMタイプ切替（シーン4の日程表示＆セリフ連動）
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              id="cmTypeDatedBtn"
+              onclick="setCmType('dated')"
+              class="py-2.5 px-3 rounded-xl font-bold text-xs border transition flex flex-col items-center justify-center gap-1 text-center"
+            >
+              <span class="text-sm">📅 日付入りピンポイント告知</span>
+              <span class="text-[10px] font-normal opacity-80">11/14等の具体的な開催日を表示</span>
+            </button>
+            <button
+              type="button"
+              id="cmTypeEvergreenBtn"
+              onclick="setCmType('evergreen')"
+              class="py-2.5 px-3 rounded-xl font-bold text-xs border transition flex flex-col items-center justify-center gap-1 text-center"
+            >
+              <span class="text-sm">♻️ 汎用CM（日付なし）</span>
+              <span class="text-[10px] font-normal opacity-80">「毎月開催！」等で常設利用可能</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ② Aspect Ratio Toggle (16:9 vs 9:16) -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5">
+            画面サイズ（比率）切替
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              id="aspect16x9Btn"
+              onclick="setAspectRatio('16:9')"
+              class="py-2.5 px-3 rounded-xl font-bold text-xs border transition flex items-center justify-center gap-2"
+            >
+              <span>🖥️ 横長 (16:9)</span>
+              <span class="text-[10px] opacity-75">1920×1080</span>
+            </button>
+            <button
+              type="button"
+              id="aspect9x16Btn"
+              onclick="setAspectRatio('9:16')"
+              class="py-2.5 px-3 rounded-xl font-bold text-xs border transition flex items-center justify-center gap-2"
+            >
+              <span>📱 縦長ショート (9:16)</span>
+              <span class="text-[10px] opacity-75">1080×1920</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ③ Tone Selector -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5">
+            CMトーン＆カラー演出
+          </label>
+          <div class="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              id="tonePassionateBtn"
+              onclick="setTone('passionate')"
+              class="py-2 px-2 rounded-xl font-bold text-xs border transition text-center"
+            >
+              🔥 熱血・スピード感
+            </button>
+            <button
+              type="button"
+              id="toneSmartBtn"
+              onclick="setTone('smart')"
+              class="py-2 px-2 rounded-xl font-bold text-xs border transition text-center"
+            >
+              ✨ スマート・知的
+            </button>
+            <button
+              type="button"
+              id="toneFriendlyBtn"
+              onclick="setTone('friendly')"
+              class="py-2 px-2 rounded-xl font-bold text-xs border transition text-center"
+            >
+              🔰 親しみ・安心感
+            </button>
+          </div>
+        </div>
+
+        <!-- ④ Visual Theme & Font Proposal Selector -->
+        <div class="bg-slate-950/80 border border-amber-500/30 rounded-xl p-3 flex flex-col gap-2">
+          <label class="block text-xs font-black text-amber-300">
+            🎨 ビジュアルテーマ＆フォント提案（巻物・屏風・配色連動）
+          </label>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              id="themeDojoBtn"
+              onclick="setVisualTheme('dojo-scroll')"
+              class="py-2 px-2.5 rounded-lg font-bold text-[11px] border transition text-left"
+            >
+              🏯 和風道場・巻物＆屏風<br/>
+              <span class="text-[10px] font-normal opacity-80">極太明朝・毛筆 × 和紙・金屏風</span>
+            </button>
+            <button
+              type="button"
+              id="themeCyberBtn"
+              onclick="setVisualTheme('cyber-impact')"
+              class="py-2 px-2.5 rounded-lg font-bold text-[11px] border transition text-left"
+            >
+              ⚡ サイバー・インパクト<br/>
+              <span class="text-[10px] font-normal opacity-80">超極太ゴシック × ネオン粒子</span>
+            </button>
+            <button
+              type="button"
+              id="themeSmartBtn"
+              onclick="setVisualTheme('corporate-smart')"
+              class="py-2 px-2.5 rounded-lg font-bold text-[11px] border transition text-left"
+            >
+              💎 王道ビジネス・スマート<br/>
+              <span class="text-[10px] font-normal opacity-80">洗練ゴシック × グラス枠</span>
+            </button>
+            <button
+              type="button"
+              id="themePopBtn"
+              onclick="setVisualTheme('pop-campus')"
+              class="py-2 px-2.5 rounded-lg font-bold text-[11px] border transition text-left"
+            >
+              🌈 ポップ＆キャンパス<br/>
+              <span class="text-[10px] font-normal opacity-80">丸みポップ書体 × 明るい枠</span>
+            </button>
+          </div>
+          <div
+            id="themeProposalReasonBox"
+            class="text-[11px] text-amber-100/90 bg-amber-950/30 border border-amber-500/20 rounded-lg p-2 leading-relaxed"
+          >
+            💡 AI提案理由を読み込み中...
+          </div>
+        </div>
+
+        <!-- AI Plan Button -->
+        <button
+          type="button"
+          id="aiPlanBtn"
+          onclick="generateAiPlan()"
+          class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 hover:from-amber-400 hover:to-red-500 text-white font-black text-sm shadow-lg shadow-orange-600/25 transition flex items-center justify-center gap-2"
+        >
+          <span>✨ AIで20秒CM構成（4カット）を自動作成</span>
+        </button>
+      </div>
+
+      <!-- Rendered Video Preview Box (Left Bottom) -->
+      <div id="videoPreviewPanel" class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-black text-white flex items-center gap-2">
+            🎥 完成MP4プレビュー＆ダウンロード
+          </h3>
+          <span id="previewRatioBadge" class="text-[11px] font-bold px-2.5 py-0.5 rounded bg-slate-800 text-slate-300">
+            16:9
+          </span>
+        </div>
+
+        <div id="videoContainer" class="w-full bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex items-center justify-center min-h-[200px]">
+          <div id="noVideoPlaceholder" class="p-6 text-center text-xs text-slate-400">
+            下部の「🎬 ステップ2：MP4動画をレンダリング出力」を押すと、ここに完成CM動画が表示されます。
+          </div>
+          <video
+            id="renderedVideoPlayer"
+            controls
+            class="hidden w-full max-h-[420px] object-contain bg-black"
+          ></video>
+        </div>
+
+        <a
+          id="downloadMp4Link"
+          href="/out/cm_video.mp4"
+          download="cm_video.mp4"
+          class="hidden w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs text-center transition shadow-lg shadow-emerald-600/20"
+        >
+          ⬇️ 完成MP4動画 (cm_video.mp4) をダウンロード
+        </a>
+      </div>
+
+      <!-- Real-Time Execution Log & Diagnostics Console -->
+      <div id="logConsolePanel" class="bg-slate-900/95 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col gap-2.5">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-black text-white flex items-center gap-2">
+            <span>📜 リアルタイム実行ログ＆エラー診断</span>
+            <span class="text-[10px] font-normal text-slate-400">(logs/studio.log)</span>
+          </h3>
+          <div class="flex items-center gap-1.5">
+            <button
+              type="button"
+              onclick="copyLogsToClipboard()"
+              class="text-[11px] font-bold px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
+            >
+              📋 コピー
+            </button>
+            <button
+              type="button"
+              onclick="clearServerLogs()"
+              class="text-[11px] font-bold px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
+            >
+              🗑️ クリア
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="logConsoleOutput"
+          class="w-full h-56 bg-slate-950 border border-slate-800 rounded-xl p-3 overflow-y-auto font-mono text-[11px] leading-relaxed flex flex-col gap-1"
+        >
+          <div class="text-slate-500">スタジオ起動完了。ボタンを押すとここにリアルタイムの進行状況とAPIログが表示されます...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Center/Right Column: 4-Cut Storyboard Editing Board (8 cols on lg) -->
+    <section class="lg:col-span-8 flex flex-col gap-4">
+      <!-- Real-Time Duration Gauge Bar -->
+      <div class="bg-slate-900/95 border border-slate-800 rounded-2xl p-4 shadow-xl sticky top-[69px] z-20 backdrop-blur-md">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-base font-black text-white" id="totalDurationLabel">
+              ⏱️ 合計予想尺：19.5秒 / 目標 20.0秒
+            </span>
+            <span id="durationStatusBadge" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              適正レンジ (約20秒)
+            </span>
+          </div>
+          <div class="text-xs text-slate-400 flex items-center gap-3">
+            <span id="totalCharCountLabel">合計ナレーション: 120文字</span>
+            <span class="text-slate-600">|</span>
+            <span id="measuredFramesLabel">確定フレーム: 600 frames (30fps)</span>
+          </div>
+        </div>
+
+        <!-- Progress Gauge -->
+        <div class="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800 p-0.5">
+          <div
+            id="durationGaugeBar"
+            class="h-full rounded-full transition-all duration-300 bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400"
+            style="width: 97%"
+          ></div>
+        </div>
+      </div>
+
+      <!-- 4 Storyboard Cards Grid -->
+      <div id="storyboardGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Populated dynamically via JS -->
+      </div>
+    </section>
+  </main>
+
+  <!-- Bottom Sticky Action Bar: Batch Generation & MP4 Export -->
+  <footer class="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-lg border-t border-slate-800 px-6 py-3.5 shadow-2xl">
+    <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3 min-w-0 flex-1">
+        <div id="pipelineStatusDot" class="w-3 h-3 rounded-full bg-emerald-400 shrink-0"></div>
+        <span
+          id="elapsedTimerBadge"
+          class="hidden text-xs font-mono font-black px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0"
+        >
+          ⏱️ 0.0秒
+        </span>
+        <span id="pipelineStatusText" class="text-xs md:text-sm font-bold text-slate-200 truncate">
+          準備完了：各シーンを微調整してステップ1（テスト生成）またはステップ2（MP4出力）を実行してください
+        </span>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onclick="document.getElementById('logConsolePanel').scrollIntoView({ behavior: 'smooth' })"
+          class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 transition"
+        >
+          📜 ログを見る
+        </button>
+
+        <button
+          type="button"
+          id="step1TestGenBtn"
+          onclick="runStep1TestGenerate(true)"
+          class="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-200 border border-sky-500/40 font-black text-xs transition flex items-center gap-1.5"
+        >
+          <span>⚡ 音声＋静止画で高速生成</span>
+        </button>
+
+        <button
+          type="button"
+          id="step1VideoGenBtn"
+          onclick="runStep1TestGenerate(false)"
+          class="py-2.5 px-5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white font-black text-xs md:text-sm shadow-lg shadow-orange-600/25 transition flex items-center gap-2"
+        >
+          <span>🎥 ステップ1：音声＋AI背景映像(.mp4)を生成</span>
+        </button>
+
+        <button
+          type="button"
+          id="step2RenderBtn"
+          onclick="runStep2RenderMp4()"
+          class="py-2.5 px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-xs md:text-sm shadow-lg shadow-emerald-600/30 transition flex items-center gap-2"
+        >
+          <span>🎬 ステップ2：MP4動画をレンダリング出力</span>
+        </button>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const SAMPLE_ANNOUNCEMENT = `【イベント告知】計算道場がパワーアップして帰ってきます！
+
+いつもCPAバーチャル校をご利用いただきありがとうございます。
+大好評のアウトプットイベント「計算道場」が、今月からさらにパワーアップして開催決定！
+
+■ パワーアップのポイント
+1. 「財務会計論」＆「管理会計論」の毎月W開催に拡大！
+2. 演習後には大好評のチューターによる丁寧なポイント解説つき！
+3. 本番さながらの緊張感！6択なしの「数値回答形式」全5問で実力を試せます。
+
+■ 今月の開催スケジュール
+・11月14日(土) 20:00〜21:00 管理会計論
+・11月28日(土) 20:00〜21:00 財務会計論
+
+■ 開催場所
+CPAバーチャル校 1F教室
+
+■ 対象者
+短答未受験の方・学習1年目の方も大歓迎！現在の腕試しにぜひご参加ください。
+
+■ 申込方法
+参加ご希望の方は、今すぐ専用のお申込みフォームよりエントリーしてください！`;
+
+    let currentScenario = null;
+    let isBusy = false;
+    let busyStartTime = 0;
+    let busyTimerInterval = null;
+    let lastLogId = 0;
+
+    function appendLogEntry(entry) {
+      if (!entry || entry.id <= lastLogId) return;
+      lastLogId = Math.max(lastLogId, entry.id);
+
+      const box = document.getElementById("logConsoleOutput");
+      if (!box) return;
+
+      const row = document.createElement("div");
+      const colorClass =
+        entry.level === "error"
+          ? "text-red-400 font-bold"
+          : entry.level === "warn"
+          ? "text-amber-300"
+          : entry.level === "success"
+          ? "text-emerald-300 font-bold"
+          : "text-slate-300";
+
+      row.className = `${colorClass} break-all`;
+      row.textContent = `[${entry.time}] ${entry.message}`;
+      box.appendChild(row);
+      box.scrollTop = box.scrollHeight;
+
+      // Also update the bottom status bar text if currently busy so the user sees live progress
+      if (isBusy) {
+        const statusTextEl = document.getElementById("pipelineStatusText");
+        if (statusTextEl) {
+          statusTextEl.textContent = entry.message;
+        }
+      }
+    }
+
+    async function pollServerLogs() {
+      try {
+        const res = await fetch(`/api/logs?since=${lastLogId}`);
+        const data = await res.json();
+        if (Array.isArray(data.logs)) {
+          data.logs.forEach(appendLogEntry);
+        }
+      } catch {
+        // ignore network hiccup
+      }
+    }
+
+    function connectLogStream() {
+      try {
+        const es = new EventSource("/api/logs/stream");
+        es.onmessage = (ev) => {
+          try {
+            const entry = JSON.parse(ev.data);
+            appendLogEntry(entry);
+          } catch {
+            // ignore
+          }
+        };
+      } catch {
+        // fallback to polling
+      }
+      setInterval(() => {
+        if (isBusy) pollServerLogs();
+      }, 800);
+    }
+
+    async function clearServerLogs() {
+      try {
+        await fetch("/api/logs/clear", { method: "POST" });
+        const box = document.getElementById("logConsoleOutput");
+        if (box) {
+          box.innerHTML = '<div class="text-slate-500">ログをクリアしました。</div>';
+        }
+      } catch (err) {
+        showToast(`ログクリア失敗: ${err.message}`, "error");
+      }
+    }
+
+    function copyLogsToClipboard() {
+      const box = document.getElementById("logConsoleOutput");
+      if (!box) return;
+      navigator.clipboard.writeText(box.innerText || "");
+      showToast("📋 実行ログをクリップボードにコピーしました", "success");
+    }
+
+    function showToast(message, type = "info") {
+      const container = document.getElementById("toastContainer");
+      const el = document.createElement("div");
+      const colors =
+        type === "error"
+          ? "bg-red-950/95 border-red-500/60 text-red-200"
+          : type === "success"
+          ? "bg-emerald-950/95 border-emerald-500/60 text-emerald-200"
+          : "bg-slate-900/95 border-indigo-500/50 text-slate-100";
+      el.className = `px-4 py-3 rounded-xl border shadow-xl text-xs font-bold transition-all duration-300 pointer-events-auto ${colors}`;
+      el.textContent = message;
+      container.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = "0";
+        setTimeout(() => el.remove(), 300);
+      }, 4200);
+    }
+
+    function setBusyState(busy, statusText = "") {
+      isBusy = busy;
+      const dot = document.getElementById("pipelineStatusDot");
+      const text = document.getElementById("pipelineStatusText");
+      const timerBadge = document.getElementById("elapsedTimerBadge");
+      const buttons = [
+        document.getElementById("aiPlanBtn"),
+        document.getElementById("step1TestGenBtn"),
+        document.getElementById("step1VideoGenBtn"),
+        document.getElementById("step2RenderBtn"),
+      ];
+
+      buttons.forEach((b) => {
+        if (!b) return;
+        b.disabled = busy;
+        b.style.opacity = busy ? "0.6" : "1";
+      });
+
+      if (busyTimerInterval) {
+        clearInterval(busyTimerInterval);
+        busyTimerInterval = null;
+      }
+
+      if (busy) {
+        busyStartTime = Date.now();
+        dot.className = "w-3 h-3 rounded-full bg-amber-400 animate-ping shrink-0";
+        text.textContent = statusText || "処理を実行中です...";
+        if (timerBadge) {
+          timerBadge.classList.remove("hidden");
+          timerBadge.textContent = "⏱️ 0.0秒";
+          busyTimerInterval = setInterval(() => {
+            const sec = ((Date.now() - busyStartTime) / 1000).toFixed(1);
+            timerBadge.textContent = `⏱️ ${sec}秒経過`;
+          }, 100);
+        }
+      } else {
+        dot.className = "w-3 h-3 rounded-full bg-emerald-400 shrink-0";
+        if (timerBadge) {
+          timerBadge.classList.add("hidden");
+        }
+        if (statusText) text.textContent = statusText;
+        pollServerLogs();
+      }
+    }
+
+    // Calculate estimated duration from narration character count (~6.5 chars = 1s + 0.25s pause)
+    function estimateSceneSeconds(narrationText) {
+      const cleanLen = (narrationText || "").replace(/\s+/g, "").length;
+      if (cleanLen === 0) return 0.5;
+      return Number((cleanLen / 6.5 + 0.25).toFixed(1));
+    }
+
+    function updateRealtimeGauge() {
+      if (!currentScenario || !Array.isArray(currentScenario.scenes)) return;
+
+      let totalEstSec = 0;
+      let totalChars = 0;
+      let totalFrames = 0;
+
+      currentScenario.scenes.forEach((scene, idx) => {
+        const cleanLen = (scene.narration || "").replace(/\s+/g, "").length;
+        const estSec = estimateSceneSeconds(scene.narration);
+        totalEstSec += estSec;
+        totalChars += cleanLen;
+        totalFrames += scene.durationInFrames || Math.round(estSec * 30);
+
+        const badgeEl = document.getElementById(`sceneEstBadge_${idx}`);
+        if (badgeEl) {
+          badgeEl.textContent = `${cleanLen}文字 / 予想 ${estSec.toFixed(1)}秒 (実測 ${(scene.durationInSeconds || estSec).toFixed(1)}秒)`;
+        }
+      });
+
+      const roundedTotal = Number(totalEstSec.toFixed(1));
+      const labelEl = document.getElementById("totalDurationLabel");
+      const statusBadge = document.getElementById("durationStatusBadge");
+      const charLabel = document.getElementById("totalCharCountLabel");
+      const framesLabel = document.getElementById("measuredFramesLabel");
+      const barEl = document.getElementById("durationGaugeBar");
+
+      labelEl.textContent = `⏱️ 合計予想尺：${roundedTotal.toFixed(1)}秒 / 目標 20.0秒`;
+      charLabel.textContent = `合計ナレーション: ${totalChars}文字`;
+      framesLabel.textContent = `確定フレーム: ${totalFrames} frames (30fps)`;
+
+      const pct = Math.min(100, Math.max(5, (roundedTotal / 20.0) * 100));
+      barEl.style.width = `${pct}%`;
+
+      if (roundedTotal > 20.5) {
+        barEl.className =
+          "h-full rounded-full transition-all duration-300 bg-gradient-to-r from-amber-500 via-orange-500 to-red-600";
+        statusBadge.className =
+          "text-xs font-bold px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/40";
+        statusBadge.textContent = `⚠️ 尺オーバー (+${(roundedTotal - 20.0).toFixed(1)}秒)`;
+      } else if (roundedTotal < 15.0) {
+        barEl.className =
+          "h-full rounded-full transition-all duration-300 bg-gradient-to-r from-sky-500 to-indigo-500";
+        statusBadge.className =
+          "text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/40";
+        statusBadge.textContent = "やや短め (セリフ追加可)";
+      } else {
+        barEl.className =
+          "h-full rounded-full transition-all duration-300 bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400";
+        statusBadge.className =
+          "text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+        statusBadge.textContent = "✓ 適正レンジ (約20秒)";
+      }
+    }
+
+    function updateModeButtonsUI() {
+      if (!currentScenario) return;
+
+      // CM Type buttons
+      const isDated = currentScenario.cmType !== "evergreen";
+      const datedBtn = document.getElementById("cmTypeDatedBtn");
+      const evergreenBtn = document.getElementById("cmTypeEvergreenBtn");
+      datedBtn.className = isDated
+        ? "py-2.5 px-3 rounded-xl font-bold text-xs border transition flex flex-col items-center justify-center gap-1 text-center bg-amber-500/20 border-amber-400 text-amber-200 shadow-md shadow-amber-500/10"
+        : "py-2.5 px-3 rounded-xl font-bold text-xs border transition flex flex-col items-center justify-center gap-1 text-center bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800/60";
+      evergreenBtn.className = !isDated
+        ? "py-2.5 px-3 rounded-xl font-bold text-xs border transition flex flex-col items-center justify-center gap-1 text-center bg-emerald-500/20 border-emerald-400 text-emerald-200 shadow-md shadow-emerald-500/10"
+        : "py-2.5 px-3 rounded-xl font-bold text-xs border transition flex flex-col items-center justify-center gap-1 text-center bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800/60";
+
+      // Aspect ratio buttons
+      const is16x9 = currentScenario.aspectRatio !== "9:16";
+      const btn16x9 = document.getElementById("aspect16x9Btn");
+      const btn9x16 = document.getElementById("aspect9x16Btn");
+      btn16x9.className = is16x9
+        ? "py-2.5 px-3 rounded-xl font-bold text-xs border transition flex items-center justify-center gap-2 bg-indigo-500/25 border-indigo-400 text-indigo-200 shadow-md shadow-indigo-500/10"
+        : "py-2.5 px-3 rounded-xl font-bold text-xs border transition flex items-center justify-center gap-2 bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800/60";
+      btn9x16.className = !is16x9
+        ? "py-2.5 px-3 rounded-xl font-bold text-xs border transition flex items-center justify-center gap-2 bg-indigo-500/25 border-indigo-400 text-indigo-200 shadow-md shadow-indigo-500/10"
+        : "py-2.5 px-3 rounded-xl font-bold text-xs border transition flex items-center justify-center gap-2 bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800/60";
+
+      document.getElementById("previewRatioBadge").textContent =
+        is16x9 ? "横長 16:9 (1920×1080)" : "縦長 9:16 (1080×1920)";
+
+      // Tone buttons
+      const tones = [
+        { key: "passionate", id: "tonePassionateBtn" },
+        { key: "smart", id: "toneSmartBtn" },
+        { key: "friendly", id: "toneFriendlyBtn" },
+      ];
+      tones.forEach((t) => {
+        const el = document.getElementById(t.id);
+        const active = (currentScenario.tone || "passionate") === t.key;
+        el.className = active
+          ? "py-2 px-2 rounded-xl font-bold text-xs border transition text-center bg-sky-500/25 border-sky-400 text-sky-200"
+          : "py-2 px-2 rounded-xl font-bold text-xs border transition text-center bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800/60";
+      });
+
+      // Visual Theme buttons & AI Proposal Reason
+      const themes = [
+        { key: "dojo-scroll", id: "themeDojoBtn" },
+        { key: "cyber-impact", id: "themeCyberBtn" },
+        { key: "corporate-smart", id: "themeSmartBtn" },
+        { key: "pop-campus", id: "themePopBtn" },
+      ];
+      const activeTheme = currentScenario.visualTheme || "dojo-scroll";
+      themes.forEach((th) => {
+        const el = document.getElementById(th.id);
+        if (!el) return;
+        const active = activeTheme === th.key;
+        el.className = active
+          ? "py-2 px-2.5 rounded-lg font-bold text-[11px] border transition text-left bg-amber-500/25 border-amber-400 text-amber-100 shadow-md shadow-amber-500/10"
+          : "py-2 px-2.5 rounded-lg font-bold text-[11px] border transition text-left bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800/70";
+      });
+
+      const reasonBox = document.getElementById("themeProposalReasonBox");
+      if (reasonBox) {
+        reasonBox.textContent =
+          "💡 " +
+          (currentScenario.themeProposalReason ||
+            "イベントの世界観に合わせて、和紙の巻物・金屏風モチーフと極太明朝体フォント（Noto Serif JP）で可読性と迫力を高めています。");
+      }
+    }
+
+    function setVisualTheme(theme) {
+      if (!currentScenario) return;
+      currentScenario.visualTheme = theme;
+
+      const reasonMap = {
+        "dojo-scroll":
+          "「計算道場」の真剣勝負・武道場の世界観に合わせ、和紙の巻物（展開アニメ）と金屏風パネル、極太明朝体・毛筆書体（Noto Serif JP / Yuji Syuku）＋金箔パーティクル演出を適用中。",
+        "cyber-impact":
+          "スピード感と先進性を強調する超極太ゴシック（Dela Gothic One）＋サイバーネオン粒子演出を適用中。",
+        "corporate-smart":
+          "知的で信頼感のある王道ゴシック（Noto Sans JP）＋洗練されたグラスモーフィズム枠＋ボケ玉演出を適用中。",
+        "pop-campus":
+          "親しみやすく明るい丸みポップ書体（Mochiy Pop One）＋ポップ枠演出を適用中。",
+      };
+      currentScenario.themeProposalReason = reasonMap[theme] || "";
+
+      // Update scene frameStyle defaults to match theme
+      if (Array.isArray(currentScenario.scenes)) {
+        currentScenario.scenes.forEach((s, i) => {
+          if (theme === "dojo-scroll") {
+            s.frameStyle = i % 2 === 0 ? "makimono" : "byobu";
+          } else {
+            s.frameStyle = "glass";
+          }
+        });
+      }
+
+      updateModeButtonsUI();
+      renderStoryboardCards();
+      saveCurrentScenario(false);
+      showToast(`🎨 ビジュアルテーマを「${theme}」に切り替えました！`);
+    }
+
+    function setCmType(mode) {
+      if (!currentScenario) return;
+      currentScenario.cmType = mode;
+
+      // Switch Scene 4 narration, subtitle, and schedule display automatically
+      const scene4 = currentScenario.scenes[3];
+      if (scene4) {
+        if (mode === "evergreen") {
+          scene4.narrationDated = scene4.narrationDated || scene4.narration;
+          scene4.subtitleDated = scene4.subtitleDated || scene4.subtitle;
+          if (scene4.narrationEvergreen) {
+            scene4.narration = scene4.narrationEvergreen;
+          } else {
+            scene4.narration = "毎月開催！最新日程の確認・お申込みはフォームから！";
+          }
+          if (scene4.subtitleEvergreen) {
+            scene4.subtitle = scene4.subtitleEvergreen;
+          } else {
+            scene4.subtitle = "毎月W開催！最新日程・お申込みはフォームへ";
+          }
+        } else {
+          scene4.narrationEvergreen = scene4.narrationEvergreen || scene4.narration;
+          scene4.subtitleEvergreen = scene4.subtitleEvergreen || scene4.subtitle;
+          if (scene4.narrationDated) {
+            scene4.narration = scene4.narrationDated;
+          }
+          if (scene4.subtitleDated) {
+            scene4.subtitle = scene4.subtitleDated;
+          }
+        }
+      }
+
+      updateModeButtonsUI();
+      renderStoryboardCards();
+      updateRealtimeGauge();
+      saveCurrentScenario(false);
+      showToast(
+        mode === "evergreen"
+          ? "♻️ 汎用CMモード（日付なし・常設用）に切り替えました"
+          : "📅 日付入りピンポイント告知モードに切り替えました"
+      );
+    }
+
+    function setAspectRatio(ratio) {
+      if (!currentScenario) return;
+      currentScenario.aspectRatio = ratio;
+      updateModeButtonsUI();
+      saveCurrentScenario(false);
+      showToast(
+        ratio === "9:16"
+          ? "📱 縦長ショートCM (9:16 / 1080×1920) に切り替えました"
+          : "🖥️ 横長CM (16:9 / 1920×1080) に切り替えました"
+      );
+    }
+
+    function setTone(tone) {
+      if (!currentScenario) return;
+      currentScenario.tone = tone;
+      updateModeButtonsUI();
+      saveCurrentScenario(false);
+    }
+
+    function loadSampleAnnouncement() {
+      document.getElementById("rawAnnouncementInput").value = SAMPLE_ANNOUNCEMENT;
+      if (currentScenario) {
+        currentScenario.rawAnnouncement = SAMPLE_ANNOUNCEMENT;
+      }
+      showToast("📋「計算道場」のサンプル告知文をセットしました");
+    }
+
+    function renderStoryboardCards() {
+      const grid = document.getElementById("storyboardGrid");
+      if (!currentScenario || !Array.isArray(currentScenario.scenes)) return;
+
+      const isEvergreen = currentScenario.cmType === "evergreen";
+
+      grid.innerHTML = currentScenario.scenes
+        .map((scene, idx) => {
+          const isScene4 = idx === 3 || Boolean(scene.infoBoard);
+          const cleanLen = (scene.narration || "").replace(/\s+/g, "").length;
+          const estSec = estimateSceneSeconds(scene.narration);
+          const cacheBust = Date.now();
+          const bgUrl = scene.bgFile ? `/${scene.bgFile}?t=${cacheBust}` : "";
+          const audioUrl = scene.audioFile ? `/${scene.audioFile}?t=${cacheBust}` : "";
+
+          const activeSchedules = isScene4
+            ? isEvergreen
+              ? (scene.infoBoard?.evergreenSchedules || [
+                  "毎月開催！最新スケジュールはWebへ",
+                ]).join("\n")
+              : (scene.infoBoard?.schedules || []).join("\n")
+            : "";
+
+          const activeCta = isScene4
+            ? isEvergreen
+              ? scene.infoBoard?.evergreenCtaText ||
+                scene.infoBoard?.ctaText ||
+                "お申込みはフォームから ▶"
+              : scene.infoBoard?.ctaText || "今すぐお申込みフォームへ！"
+            : "";
+
+          return `
+          <div class="bg-slate-900/95 border ${
+            isScene4 ? "border-amber-500/50" : "border-slate-800"
+          } rounded-2xl p-4 shadow-xl flex flex-col gap-3.5 relative">
+            <!-- Card Top Header -->
+            <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-1 rounded-lg font-black text-xs ${
+                  isScene4
+                    ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white"
+                    : "bg-indigo-600 text-white"
+                }">
+                  CUT 0${scene.id}
+                </span>
+                <span class="font-black text-sm text-white">
+                  ${scene.role || (isScene4 ? "インフォメーションボード" : `シーン${scene.id}`)}
+                </span>
+              </div>
+              <span id="sceneEstBadge_${idx}" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                ${cleanLen}文字 / 予想 ${estSec.toFixed(1)}秒 (実測 ${(scene.durationInSeconds || estSec).toFixed(1)}秒)
+              </span>
+            </div>
+
+            <!-- Narration Input -->
+            <div>
+              <label class="block text-xs font-bold text-slate-300 mb-1">
+                🎙️ ナレーション（Gemini TTS読み上げ原稿）
+              </label>
+              <textarea
+                rows="2"
+                oninput="onSceneFieldChange(${idx}, 'narration', this.value)"
+                class="w-full rounded-xl bg-slate-950 border border-slate-700/80 focus:border-indigo-400 text-xs text-white p-2.5 outline-none"
+              >${scene.narration || ""}</textarea>
+            </div>
+
+            ${
+              !isScene4
+                ? `
+            <!-- Scene 1-3: Center Impact Heading & Sub-badge -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-xs font-bold text-amber-300 mb-1">
+                  💥 中央デカ文字（メイン見出し）
+                </label>
+                <input
+                  type="text"
+                  value="${(scene.heading || "").replace(/"/g, "&quot;")}"
+                  oninput="onSceneFieldChange(${idx}, 'heading', this.value)"
+                  class="w-full rounded-xl bg-slate-950 border border-slate-700/80 focus:border-amber-400 text-xs font-bold text-white p-2.5 outline-none"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-sky-300 mb-1">
+                  🏷️ サブバッジ（補足アピール）
+                </label>
+                <input
+                  type="text"
+                  value="${(scene.subBadge || "").replace(/"/g, "&quot;")}"
+                  oninput="onSceneFieldChange(${idx}, 'subBadge', this.value)"
+                  class="w-full rounded-xl bg-slate-950 border border-slate-700/80 focus:border-sky-400 text-xs font-bold text-white p-2.5 outline-none"
+                />
+              </div>
+            </div>
+            `
+                : `
+            <!-- Scene 4 Dedicated Information Board Editor -->
+            <div class="bg-slate-950/90 border border-amber-500/40 rounded-xl p-3 flex flex-col gap-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-black text-amber-300 flex items-center gap-1.5">
+                  📋 インフォメーションボード表示項目 (${
+                    isEvergreen ? "♻️ 汎用モード表示中" : "📅 日付入りモード表示中"
+                  })
+                </span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-300 mb-1">
+                    イベント名 / ボード見出し
+                  </label>
+                  <input
+                    type="text"
+                    value="${(scene.infoBoard?.title || scene.heading || "").replace(/"/g, "&quot;")}"
+                    oninput="onInfoBoardChange('title', this.value)"
+                    class="w-full rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white p-2 outline-none"
+                  />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-300 mb-1">
+                    右上ステータスバッジ
+                  </label>
+                  <input
+                    type="text"
+                    value="${(scene.subBadge || "").replace(/"/g, "&quot;")}"
+                    oninput="onSceneFieldChange(${idx}, 'subBadge', this.value)"
+                    class="w-full rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white p-2 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-amber-200 mb-1">
+                  🗓️ 開催スケジュール枠（1行につき1枠表示）
+                </label>
+                <textarea
+                  rows="2"
+                  oninput="onInfoBoardSchedulesChange(this.value)"
+                  class="w-full rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white p-2 outline-none"
+                >${activeSchedules}</textarea>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] font-bold text-sky-300 mb-1">
+                    📍 場所バッジ
+                  </label>
+                  <input
+                    type="text"
+                    value="${(scene.infoBoard?.location || "").replace(/"/g, "&quot;")}"
+                    oninput="onInfoBoardChange('location', this.value)"
+                    class="w-full rounded-lg bg-slate-900 border border-slate-700 text-xs text-white p-2 outline-none"
+                  />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-emerald-300 mb-1">
+                    🔰 対象者バッジ
+                  </label>
+                  <input
+                    type="text"
+                    value="${(scene.infoBoard?.target || "").replace(/"/g, "&quot;")}"
+                    oninput="onInfoBoardChange('target', this.value)"
+                    class="w-full rounded-lg bg-slate-900 border border-slate-700 text-xs text-white p-2 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-orange-300 mb-1">
+                  👉 CTA（行動喚起）ボタンバナー文言
+                </label>
+                <input
+                  type="text"
+                  value="${activeCta.replace(/"/g, "&quot;")}"
+                  oninput="onInfoBoardCtaChange(this.value)"
+                  class="w-full rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white p-2 outline-none"
+                />
+              </div>
+            </div>
+            `
+            }
+
+            <!-- Bottom Subtitle -->
+            <div>
+              <label class="block text-xs font-bold text-slate-300 mb-1">
+                💬 下部テロップ
+              </label>
+              <input
+                type="text"
+                value="${(scene.subtitle || "").replace(/"/g, "&quot;")}"
+                oninput="onSceneFieldChange(${idx}, 'subtitle', this.value)"
+                class="w-full rounded-xl bg-slate-950 border border-slate-700/80 focus:border-indigo-400 text-xs text-slate-100 p-2.5 outline-none"
+              />
+            </div>
+
+            <!-- Placement & Frame Motif Controls (Linked to Background Contrast Zone) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-slate-950/60 border border-slate-800/90 rounded-xl p-2.5">
+              <div>
+                <label class="block text-[11px] font-bold text-amber-300 mb-1">
+                  📐 文字配置＆背景余白指定
+                </label>
+                <select
+                  onchange="onSceneFieldChange(${idx}, 'textPlacement', this.value)"
+                  class="w-full rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white p-2 outline-none"
+                >
+                  <option value="center" ${(scene.textPlacement || "center") === "center" ? "selected" : ""}>
+                    🎯 中央配置 (中央をシンプル配色に)
+                  </option>
+                  <option value="left" ${scene.textPlacement === "left" ? "selected" : ""}>
+                    ⬅️ 左側配置 (左をシンプル余白・右に被写体)
+                  </option>
+                  <option value="right" ${scene.textPlacement === "right" ? "selected" : ""}>
+                    ➡️ 右側配置 (右をシンプル余白・左に被写体)
+                  </option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-amber-300 mb-1">
+                  📜 文字枠モチーフ（巻物・金屏風・グラス）
+                </label>
+                <select
+                  onchange="onSceneFieldChange(${idx}, 'frameStyle', this.value)"
+                  class="w-full rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold text-white p-2 outline-none"
+                >
+                  <option value="makimono" ${(scene.frameStyle || "makimono") === "makimono" ? "selected" : ""}>
+                    📜 和紙の巻物（展開アニメ・濃墨文字）
+                  </option>
+                  <option value="byobu" ${scene.frameStyle === "byobu" ? "selected" : ""}>
+                    🏯 金屏風・黒漆額縁（金箔・白文字）
+                  </option>
+                  <option value="glass" ${scene.frameStyle === "glass" ? "selected" : ""}>
+                    ✨ モダングラス枠（高コントラスト）
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Background Prompt & Mode -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-start">
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-bold text-slate-300 mb-1">
+                  🖼️ 背景イメージ指示（日本語で編集可・空欄不可）
+                </label>
+                <textarea
+                  id="bgPromptInput_${idx}"
+                  rows="2"
+                  oninput="onBgPromptChange(${idx}, this.value)"
+                  class="w-full rounded-xl bg-slate-950 border border-slate-700/80 focus:border-indigo-400 text-xs text-slate-200 p-2 outline-none"
+                >${scene.bgPrompt || ""}</textarea>
+                <p id="bgPromptError_${idx}" class="hidden text-[11px] font-bold text-red-400 mt-1">
+                  ⚠️ 背景イメージ指示は空欄にできません
+                </p>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1">
+                  背景モード
+                </label>
+                <select
+                  onchange="onBgModeChange(${idx}, this.value)"
+                  class="w-full rounded-xl bg-slate-950 border border-slate-700/80 text-xs font-bold text-white p-2.5 outline-none"
+                >
+                  <option value="video" ${scene.bgMode === "video" ? "selected" : ""}>
+                    🎥 AI映像生成 (Gemini Omni 1.1 Flash 動画)
+                  </option>
+                  <option value="image" ${scene.bgMode === "image" ? "selected" : ""}>
+                    🖼️ AI静止画 (Flash Image + ズーム)
+                  </option>
+                  <option value="custom" ${scene.bgMode === "custom" ? "selected" : ""}>
+                    📁 手元画像アップロード
+                  </option>
+                </select>
+
+                <!-- Custom Upload File Picker -->
+                <div id="customUploadBox_${idx}" class="${
+                  scene.bgMode === "custom" ? "mt-2" : "hidden mt-2"
+                }">
+                  <label class="cursor-pointer block w-full text-center py-1.5 px-2 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-400/50 text-[11px] font-bold text-indigo-200 transition">
+                    📤 画像ファイルを選択
+                    <input
+                      type="file"
+                      accept="image/*"
+                      class="hidden"
+                      onchange="uploadCustomBg(${scene.id}, this.files[0])"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Media Preview & Single Scene Retake Footer -->
+            <div class="mt-auto pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5">
+                ${
+                  bgUrl
+                    ? (scene.bgFile || "").toLowerCase().endsWith(".mp4") ||
+                      (scene.bgFile || "").toLowerCase().endsWith(".webm")
+                      ? `<div class="relative"><video src="${bgUrl}" autoplay loop muted playsinline class="w-24 h-14 object-cover rounded-lg border border-amber-500/60 bg-slate-950"></video><span class="absolute bottom-0.5 right-1 px-1 py-0.2 rounded bg-black/80 text-[9px] font-bold text-amber-300">🎥 映像</span></div>`
+                      : `<img src="${bgUrl}" alt="Scene ${scene.id} BG" class="w-20 h-12 object-cover rounded-lg border border-slate-700 bg-slate-950" onerror="this.style.display='none'" />`
+                    : ""
+                }
+                ${
+                  audioUrl
+                    ? `<audio controls src="${audioUrl}" class="h-8 w-44"></audio>`
+                    : ""
+                }
+              </div>
+
+              <button
+                type="button"
+                onclick="retakeSingleScene(${scene.id}, ${idx})"
+                class="py-2 px-3.5 rounded-xl bg-slate-800 hover:bg-indigo-600 text-slate-100 hover:text-white font-bold text-xs border border-slate-700 transition flex items-center gap-1.5"
+              >
+                🔄 このシーンだけ音声・背景を再生成
+              </button>
+            </div>
+          </div>
+          `;
+        })
+        .join("");
+    }
+
+    function onSceneFieldChange(sceneIdx, field, value) {
+      if (!currentScenario || !currentScenario.scenes[sceneIdx]) return;
+      const scene = currentScenario.scenes[sceneIdx];
+      scene[field] = value;
+
+      if (sceneIdx === 3) {
+        if (currentScenario.cmType === "evergreen") {
+          if (field === "narration") scene.narrationEvergreen = value;
+          if (field === "subtitle") scene.subtitleEvergreen = value;
+        } else {
+          if (field === "narration") scene.narrationDated = value;
+          if (field === "subtitle") scene.subtitleDated = value;
+        }
+      }
+
+      if (field === "narration") {
+        updateRealtimeGauge();
+      }
+    }
+
+    function onBgPromptChange(sceneIdx, value) {
+      if (!currentScenario || !currentScenario.scenes[sceneIdx]) return;
+      currentScenario.scenes[sceneIdx].bgPrompt = value;
+
+      const inputEl = document.getElementById(`bgPromptInput_${sceneIdx}`);
+      const errEl = document.getElementById(`bgPromptError_${sceneIdx}`);
+      if (!value || value.trim().length === 0) {
+        inputEl.classList.add("border-red-500");
+        errEl.classList.remove("hidden");
+      } else {
+        inputEl.classList.remove("border-red-500");
+        errEl.classList.add("hidden");
+      }
+    }
+
+    function onBgModeChange(sceneIdx, mode) {
+      if (!currentScenario || !currentScenario.scenes[sceneIdx]) return;
+      currentScenario.scenes[sceneIdx].bgMode = mode;
+      const uploadBox = document.getElementById(`customUploadBox_${sceneIdx}`);
+      if (uploadBox) {
+        if (mode === "custom") {
+          uploadBox.classList.remove("hidden");
+        } else {
+          uploadBox.classList.add("hidden");
+        }
+      }
+    }
+
+    function onInfoBoardChange(field, value) {
+      if (!currentScenario || !currentScenario.scenes[3]) return;
+      const scene4 = currentScenario.scenes[3];
+      scene4.infoBoard = scene4.infoBoard || {
+        schedules: [],
+        location: "",
+        target: "",
+        ctaText: "",
+      };
+      scene4.infoBoard[field] = value;
+      if (field === "title") {
+        scene4.heading = value;
+      }
+    }
+
+    function onInfoBoardSchedulesChange(value) {
+      if (!currentScenario || !currentScenario.scenes[3]) return;
+      const scene4 = currentScenario.scenes[3];
+      scene4.infoBoard = scene4.infoBoard || {
+        schedules: [],
+        evergreenSchedules: [],
+        location: "",
+        target: "",
+        ctaText: "",
+      };
+      const lines = value
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+      if (currentScenario.cmType === "evergreen") {
+        scene4.infoBoard.evergreenSchedules = lines;
+      } else {
+        scene4.infoBoard.schedules = lines;
+      }
+    }
+
+    function onInfoBoardCtaChange(value) {
+      if (!currentScenario || !currentScenario.scenes[3]) return;
+      const scene4 = currentScenario.scenes[3];
+      scene4.infoBoard = scene4.infoBoard || {
+        schedules: [],
+        location: "",
+        target: "",
+        ctaText: "",
+      };
+      if (currentScenario.cmType === "evergreen") {
+        scene4.infoBoard.evergreenCtaText = value;
+      } else {
+        scene4.infoBoard.ctaText = value;
+      }
+    }
+
+    function validateAllBgPrompts() {
+      if (!currentScenario || !Array.isArray(currentScenario.scenes)) return false;
+      for (let i = 0; i < currentScenario.scenes.length; i++) {
+        const prompt = (currentScenario.scenes[i].bgPrompt || "").trim();
+        if (!prompt) {
+          onBgPromptChange(i, "");
+          showToast(
+            `⚠️ シーン${i + 1}の「背景イメージ指示」が空欄です。入力してください。`,
+            "error"
+          );
+          return false;
+        }
+      }
+      return true;
+    }
+
+    async function saveCurrentScenario(notify = true) {
+      if (!currentScenario) return;
+      currentScenario.rawAnnouncement =
+        document.getElementById("rawAnnouncementInput").value || "";
+
+      try {
+        const res = await fetch("/api/scenario", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scenario: currentScenario }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        if (notify) {
+          showToast("💾 現在の4カットCM構成を scenario.json に保存しました！", "success");
+        }
+      } catch (err) {
+        showToast(`保存エラー: ${err.message}`, "error");
+      }
+    }
+
+    async function generateAiPlan() {
+      if (isBusy) return;
+      const rawAnnouncement = document
+        .getElementById("rawAnnouncementInput")
+        .value.trim();
+      if (!rawAnnouncement) {
+        showToast("⚠️ イベント告知文をテキストエリアに貼り付けてください", "error");
+        return;
+      }
+
+      setBusyState(
+        true,
+        "✨ Gemini (gemini-3.8-flash) が告知文から20秒（4カット）CM構成を作成中..."
+      );
+
+      try {
+        const res = await fetch("/api/plan-cm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rawAnnouncement,
+            aspectRatio: currentScenario?.aspectRatio || "16:9",
+            cmType: currentScenario?.cmType || "dated",
+            tone: currentScenario?.tone || "passionate",
+          }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        currentScenario = data.scenario;
+        updateModeButtonsUI();
+        renderStoryboardCards();
+        updateRealtimeGauge();
+        showToast(data.message || "✨ 20秒CM構成を作成しました！", "success");
+      } catch (err) {
+        showToast(`AI構成エラー: ${err.message}`, "error");
+      } finally {
+        setBusyState(false, "✨ AI構成の作成が完了しました！");
+      }
+    }
+
+    async function uploadCustomBg(sceneId, file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          setBusyState(true, `📤 シーン${sceneId}の背景画像をアップロード中...`);
+          const res = await fetch("/api/upload-bg", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sceneId,
+              filename: file.name,
+              dataUrl: reader.result,
+            }),
+          });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+          currentScenario = data.scenario;
+          renderStoryboardCards();
+          showToast(
+            `✅ シーン${sceneId}に手元画像 (${data.filename}) を設定しました！`,
+            "success"
+          );
+        } catch (err) {
+          showToast(`画像アップロード失敗: ${err.message}`, "error");
+        } finally {
+          setBusyState(false, `シーン${sceneId}のカスタム背景画像を更新しました`);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function retakeSingleScene(sceneId, sceneIdx) {
+      if (isBusy) return;
+      if (!validateAllBgPrompts()) return;
+
+      setBusyState(
+        true,
+        `🔄 シーン${sceneId}の音声（尺計測）と背景を再生成しています...`
+      );
+
+      try {
+        const res = await fetch("/api/generate-assets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scenario: currentScenario,
+            onlySceneId: sceneId,
+            forceStillMode: false,
+          }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        currentScenario = data.scenario;
+        renderStoryboardCards();
+        updateRealtimeGauge();
+        showToast(
+          `✅ シーン${sceneId}の音声・背景を再生成しました！（確定尺: ${currentScenario.scenes[sceneIdx].durationInSeconds}秒）`,
+          "success"
+        );
+      } catch (err) {
+        showToast(`シーン${sceneId}再生成エラー: ${err.message}`, "error");
+      } finally {
+        setBusyState(false, `シーン${sceneId}の再生成が完了しました`);
+      }
+    }
+
+    async function runStep1TestGenerate(forceStill = false) {
+      if (isBusy) return;
+      if (!validateAllBgPrompts()) return;
+
+      if (!forceStill && currentScenario && Array.isArray(currentScenario.scenes)) {
+        currentScenario.scenes.forEach((s) => {
+          if (s.bgMode !== "custom") s.bgMode = "video";
+        });
+        renderStoryboardCards();
+      }
+
+      setBusyState(
+        true,
+        forceStill
+          ? "⚡ ステップ1：全4シーンの音声生成・尺確定・静止画背景生成を実行中..."
+          : "🎥 ステップ1：全4シーンの音声生成・尺確定・AI背景映像(.mp4 / Gemini Omni 1.1 Flash)生成を実行中..."
+      );
+
+      try {
+        const res = await fetch("/api/generate-assets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scenario: currentScenario,
+            onlySceneId: null,
+            forceStillMode: Boolean(forceStill),
+          }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        currentScenario = data.scenario;
+        renderStoryboardCards();
+        updateRealtimeGauge();
+        showToast(
+          `🎉 ステップ1完了！全シーンの音声尺（合計 ${data.totalSeconds}秒 / ${data.totalFrames}f）と背景${forceStill ? "画像" : "映像(.mp4)"}を生成しました！`,
+          "success"
+        );
+      } catch (err) {
+        showToast(`素材生成エラー: ${err.message}`, "error");
+      } finally {
+        setBusyState(
+          false,
+          "✅ ステップ1完了：各シーンの音声と背景を確認し、ステップ2でMP4を書き出せます"
+        );
+      }
+    }
+
+    async function runStep2RenderMp4() {
+      if (isBusy) return;
+      if (!validateAllBgPrompts()) return;
+
+      setBusyState(
+        true,
+        `🎬 ステップ2：RemotionでMP4動画を決定論的レンダリング中 (${currentScenario.aspectRatio})... 数十秒お待ちください`
+      );
+
+      try {
+        const res = await fetch("/api/render", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scenario: currentScenario }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        const videoEl = document.getElementById("renderedVideoPlayer");
+        const placeholder = document.getElementById("noVideoPlaceholder");
+        const downloadLink = document.getElementById("downloadMp4Link");
+
+        placeholder.classList.add("hidden");
+        videoEl.classList.remove("hidden");
+        videoEl.src = data.videoUrl;
+        videoEl.load();
+
+        downloadLink.classList.remove("hidden");
+        downloadLink.href = data.videoUrl;
+
+        showToast(
+          `🎉 MP4動画のレンダリングが完了しました！（合計 ${data.totalSeconds}秒 / ${data.aspectRatio}）`,
+          "success"
+        );
+      } catch (err) {
+        showToast(`MP4レンダリングエラー: ${err.message}`, "error");
+      } finally {
+        setBusyState(
+          false,
+          "🎬 MP4レンダリング完了！左下のプレビュー画面で再生・ダウンロードできます"
+        );
+      }
+    }
+
+    async function refreshApiKeyStatus() {
+      try {
+        const res = await fetch("/api/scenario");
+        const data = await res.json();
+        const apiKeyBadge = document.getElementById("apiKeyBadge");
+        if (data.hasApiKey) {
+          apiKeyBadge.className =
+            "text-xs font-bold px-3 py-1.5 rounded-lg border flex items-center gap-1.5 bg-emerald-950/80 border-emerald-500/40 text-emerald-300 cursor-pointer hover:opacity-90 transition";
+          apiKeyBadge.innerHTML = "<span>🔑 GEMINI_API_KEY 設定済 (本番AIモード)</span>";
+          showToast("✅ GEMINI_API_KEY が認識されました！（本番AIモード）", "success");
+        } else {
+          apiKeyBadge.className =
+            "text-xs font-bold px-3 py-1.5 rounded-lg border flex items-center gap-1.5 bg-amber-950/80 border-amber-500/40 text-amber-300 cursor-pointer hover:opacity-90 transition";
+          apiKeyBadge.innerHTML =
+            "<span>🧪 APIキー未設定 (クリックで再確認)</span>";
+          showToast("⚠️ .env または .env.example に GEMINI_API_KEY を保存してください", "error");
+        }
+      } catch (err) {
+        showToast(`確認エラー: ${err.message}`, "error");
+      }
+    }
+
+    async function initStudio() {
+      try {
+        const res = await fetch("/api/scenario");
+        const data = await res.json();
+        currentScenario = data.scenario;
+
+        const apiKeyBadge = document.getElementById("apiKeyBadge");
+        if (data.hasApiKey) {
+          apiKeyBadge.className =
+            "text-xs font-bold px-3 py-1.5 rounded-lg border flex items-center gap-1.5 bg-emerald-950/80 border-emerald-500/40 text-emerald-300";
+          apiKeyBadge.innerHTML = "<span>🔑 GEMINI_API_KEY 設定済 (本番AIモード)</span>";
+        } else {
+          apiKeyBadge.className =
+            "text-xs font-bold px-3 py-1.5 rounded-lg border flex items-center gap-1.5 bg-amber-950/80 border-amber-500/40 text-amber-300";
+          apiKeyBadge.innerHTML =
+            "<span>🧪 APIキー未設定 (自動でモック生成にフォールバック)</span>";
+        }
+
+        document.getElementById("rawAnnouncementInput").value =
+          currentScenario.rawAnnouncement || SAMPLE_ANNOUNCEMENT;
+
+        if (data.mp4Exists && data.videoUrl) {
+          const videoEl = document.getElementById("renderedVideoPlayer");
+          const placeholder = document.getElementById("noVideoPlaceholder");
+          const downloadLink = document.getElementById("downloadMp4Link");
+          placeholder.classList.add("hidden");
+          videoEl.classList.remove("hidden");
+          videoEl.src = `${data.videoUrl}?t=${Date.now()}`;
+          downloadLink.classList.remove("hidden");
+        }
+
+        updateModeButtonsUI();
+        renderStoryboardCards();
+        updateRealtimeGauge();
+        connectLogStream();
+        pollServerLogs();
+      } catch (err) {
+        showToast(`初期データ読み込みエラー: ${err.message}`, "error");
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", initStudio);
+  </script>
+</body>
+</html>
+

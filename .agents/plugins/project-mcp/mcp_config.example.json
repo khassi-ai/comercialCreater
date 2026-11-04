@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "StitchMCP": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://stitch.googleapis.com/mcp",
+        "--header",
+        "X-Goog-Api-Key: YOUR_STITCH_API_KEY_HERE"
+      ],
+      "env": {}
+    },
+    "SupabaseMCP": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase",
+        "--project-ref",
+        "YOUR_SUPABASE_PROJECT_REF_HERE"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "YOUR_SUPABASE_PERSONAL_ACCESS_TOKEN_HERE"
+      }
+    }
+  }
+}

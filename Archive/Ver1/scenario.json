@@ -1,0 +1,95 @@
+{
+  "title": "CPAバーチャル校 計算道場 パワーアップ告知CM",
+  "aspectRatio": "16:9",
+  "cmType": "dated",
+  "tone": "passionate",
+  "visualTheme": "dojo-scroll",
+  "themeProposalReason": "「計算道場」の真剣勝負・武道場の世界観に合わせ、和紙の巻物（展開アニメ）と金屏風パネル、力強い極太明朝体・毛筆書体（Noto Serif JP / Yuji Syuku）を組み合わせた『🏯 和風道場・巻物＆金屏風テーマ』を提案・適用しました。各カットの文字配置（中央・左・右）に合わせて背景の余白配色も高コントラストに制御します。",
+  "fps": 30,
+  "rawAnnouncement": "【イベント告知】計算道場がパワーアップして帰ってきます！\n\nいつもCPAバーチャル校をご利用いただきありがとうございます。\n大好評のアウトプットイベント「計算道場」が、今月からさらにパワーアップして開催決定！\n\n■ パワーアップのポイント\n1. 「財務会計論」＆「管理会計論」の毎月W開催に拡大！\n2. 演習後には大好評のチューターによる丁寧なポイント解説つき！\n3. 本番さながらの緊張感！6択なしの「数値回答形式」全5問で実力を試せます。\n\n■ 今月の開催スケジュール\n・11月14日(土) 20:00〜21:00 管理会計論\n・11月28日(土) 20:00〜21:00 財務会計論\n\n■ 開催場所\nCPAバーチャル校 1F教室\n\n■ 対象者\n短答未受験の方・学習1年目の方も大歓迎！現在の腕試しにぜひご参加ください。\n\n■ 申込方法\n参加ご希望の方は、今すぐ専用のお申込みフォームよりエントリーしてください！",
+  "scenes": [
+    {
+      "id": 1,
+      "role": "フック",
+      "narration": "大好評の計算道場が、さらにパワーアップして帰ってきた！",
+      "heading": "計算道場 パワーアップ！",
+      "subBadge": "CPAバーチャル校 名物イベント",
+      "subtitle": "大好評の「計算道場」がさらにパワーアップ！",
+      "bgPrompt": "威厳のある伝統的な日本武道場の内部と金屏風、温かみのある提灯の灯りと舞い上がる金粉、中央は文字の巻物が映えるシンプルで落ち着いた暗めの墨色・濃紺トーン、文字なし",
+      "bgMode": "video",
+      "textPlacement": "center",
+      "frameStyle": "makimono",
+      "audioFile": "generated/scene1_audio.wav",
+      "bgFile": "generated/scene1_bg.png",
+      "durationInSeconds": 4.8,
+      "durationInFrames": 144
+    },
+    {
+      "id": 2,
+      "role": "メリット",
+      "narration": "財務会計論と管理会計論を毎月ダブル開催！大好評のチューター解説つき！",
+      "heading": "財計＆管理 毎月W開催！",
+      "subBadge": "大好評チューター解説つき",
+      "subtitle": "財務会計論＆管理会計論を毎月W開催！チューター解説つき",
+      "bgPrompt": "画面の右側に和モダンな道場風の学習空間で電卓とタブレットを使って颯爽と演習に取り組む姿、画面の左半分は金屏風パネルの文字がくっきり読めるようシンプルで落ち着いた濃紺・黒漆色の余白背景、文字なし",
+      "bgMode": "video",
+      "textPlacement": "left",
+      "frameStyle": "byobu",
+      "audioFile": "generated/scene2_audio.wav",
+      "bgFile": "generated/scene2_bg.png",
+      "durationInSeconds": 5.5,
+      "durationInFrames": 165
+    },
+    {
+      "id": 3,
+      "role": "ルール",
+      "narration": "6択なしのガチンコ数値回答、全5問！学習1年目の挑戦も大歓迎です！",
+      "heading": "6択なし！数値回答の全5問",
+      "subBadge": "学習1年目も大歓迎！",
+      "subtitle": "6択なしの数値回答・全5問！学習1年目の挑戦も大歓迎",
+      "bgPrompt": "画面の左側に黄金の光を放つ電卓を叩く手元のドラマチックなクローズアップと道場の太鼓、画面の右半分は和紙の巻物がくっきり映えるシンプルで落ち着いた墨黒・濃茶の余白背景、文字なし",
+      "bgMode": "video",
+      "textPlacement": "right",
+      "frameStyle": "makimono",
+      "audioFile": "generated/scene3_audio.wav",
+      "bgFile": "generated/scene3_bg.png",
+      "durationInSeconds": 5.5,
+      "durationInFrames": 165
+    },
+    {
+      "id": 4,
+      "role": "インフォメーションボード",
+      "narration": "11月14日と28日開催！今すぐお申込みフォームへ！",
+      "narrationDated": "11月14日と28日開催！今すぐお申込みフォームへ！",
+      "narrationEvergreen": "毎月開催！最新日程の確認・お申込みはフォームから！",
+      "heading": "計算道場 パワーアップ開催！",
+      "subBadge": "参加無料・エントリー受付中",
+      "subtitle": "11/14(土)・11/28(土)開催！今すぐお申込みフォームへ",
+      "subtitleDated": "11/14(土)・11/28(土)開催！今すぐお申込みフォームへ",
+      "subtitleEvergreen": "毎月W開催！最新日程・お申込みはフォームへ",
+      "bgPrompt": "格式高い日本道場の正面玄関と金屏風・紅白幕の華やかな空間、中央のインフォメーション屏風ボードが際立つ落ち着いた照明、文字なし",
+      "bgMode": "video",
+      "textPlacement": "center",
+      "frameStyle": "byobu",
+      "audioFile": "generated/scene4_audio.wav",
+      "bgFile": "generated/scene4_bg.png",
+      "durationInSeconds": 4.5,
+      "durationInFrames": 135,
+      "infoBoard": {
+        "title": "CPAバーチャル校「計算道場」",
+        "schedules": [
+          "11/14(土) 20:00〜 管理会計論",
+          "11/28(土) 20:00〜 財務会計論"
+        ],
+        "evergreenSchedules": [
+          "毎月開催！最新スケジュールはWebへ",
+          "財務会計論・管理会計論 毎月W開催"
+        ],
+        "location": "CPAバーチャル校 1F教室",
+        "target": "短答未受験・学習1年目大歓迎！",
+        "ctaText": "今すぐお申込みフォームへ！",
+        "evergreenCtaText": "お申込みはフォームから ▶"
+      }
+    }
+  ]
+}

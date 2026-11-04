@@ -1,0 +1,29 @@
+# MCP Configuration (Contains sensitive API keys / tokens)
+.agents/**/mcp_config.json
+!.agents/**/mcp_config.example.json
+
+# Google Cloud Credentials / Service Account Keys
+comercialcreater-*.json
+*-credentials*.json
+*service-account*.json
+gcp-key*.json
+
+# Environment variables
+.env
+.env.*
+.env.local
+
+# Dependencies & Build artifacts
+node_modules/
+out/
+logs/
+public/generated/
+
+# Archive directory specific rules (preserve archive while ignoring heavy/sensitive artifacts)
+Archive/**/node_modules/
+Archive/**/out/
+Archive/**/logs/
+Archive/**/public/generated/
+Archive/**/.env
+Archive/**/.env.*
+Archive/**/.env.local

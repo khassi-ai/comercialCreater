@@ -1,0 +1,29 @@
+{
+  "name": "cm-auto-studio-remotion",
+  "version": "1.0.0",
+  "description": "告知文コピペで20秒（4カット）のCM動画を自動企画・音声尺確定・RemotionレンダリングするWebスタジオ",
+  "private": true,
+  "scripts": {
+    "studio": "node server/index.mjs",
+    "preview": "remotion studio src/index.ts --props=./src/generated-props.json",
+    "generate": "node scripts/generate-assets.mjs",
+    "generate:mock": "node scripts/generate-assets.mjs --mock",
+    "render": "remotion render src/index.ts CmLandscape out/cm_video.mp4 --props=./src/generated-props.json",
+    "render:portrait": "remotion render src/index.ts CmPortrait out/cm_video_portrait.mp4 --props=./src/generated-props.json"
+  },
+  "dependencies": {
+    "@google/genai": "^2.32.0",
+    "@remotion/cli": "4.0.286",
+    "@remotion/google-fonts": "4.0.286",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "4.0.286"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "^5.7.2"
+  }
+}
