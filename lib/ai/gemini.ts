@@ -36,12 +36,19 @@ ${lpText}
    - テロップの配置（中央・左・右）に合わせて、文字が映える落ち着いた高コントラストの余白（ネガティブスペース）を確保した、ドラマチックで映画のような背景描写（英語）。
    - "cinematic lighting, high resolution, clean dark background with ample negative space for text overlay, strictly no text, no letters, no watermark" を必ず含めてください。
 6. トーン: ${options.tone}
+7. ビジュアルテーマ (visualTheme):
+   - LPが和風・道場・資格・挑戦・試験・特訓系の場合: "dojo-scroll" (和紙巻物＆金屏風・毛筆＆明朝調フォント)
+   - LPがIT・テクノロジー・AI・スピード感重視の場合: "cyber-impact" (サイバーネオン＆超極太ゴシック)
+   - LPが王道ビジネス・SaaS・BtoBの場合: "corporate-smart" (洗練ブルー＆モダンゴシック)
+   - LPがカジュアル・スクール・コミュニティの場合: "pop-campus" (丸みポップ)
+8. 各カットのフレーム演出 (frameStyle): "makimono", "byobu", "glass" から選定。
+9. 最終カットのインフォメーションボード (infoBoard): 日程や場所、対象者、CTAボタン文言をLPから抽出して設定。
 
 必ず以下のJSONフォーマットのみを返してください（Markdownのバッククォートなし、純粋なJSON）：
 {
   "title": "広告タイトル",
   "aspectRatio": "${options.aspectRatio}",
-  "cmType": "evergreen",
+  "cmType": "dated",
   "tone": "${options.tone}",
   "visualTheme": "dojo-scroll",
   "themeProposalReason": "このLPの魅力と世界観に合わせた演出方針の理由",
@@ -57,8 +64,29 @@ ${lpText}
       "subtitle": "字幕テキスト",
       "bgPrompt": "English cinematic background prompt with ample negative space, strictly no text",
       "textPlacement": "center",
+      "frameStyle": "makimono",
       "durationInSeconds": 4.5,
       "durationInFrames": 135
+    },
+    {
+      "id": 4,
+      "role": "インフォメーションボード",
+      "narration": "今すぐお申込みフォームへ！",
+      "heading": "告知まとめ見出し",
+      "subBadge": "参加無料・受付中",
+      "subtitle": "今すぐWebサイトまたはフォームへアクセス！",
+      "bgPrompt": "English background prompt, strictly no text",
+      "textPlacement": "center",
+      "frameStyle": "byobu",
+      "durationInSeconds": 4.5,
+      "durationInFrames": 135,
+      "infoBoard": {
+        "title": "イベントまたはサービス名",
+        "schedules": ["11/14(土) 開催", "11/28(土) 開催"],
+        "location": "オンライン / 会場",
+        "target": "対象者（例: 初心者大歓迎！）",
+        "ctaText": "今すぐお申込みフォームへ！"
+      }
     }
   ]
 }`;

@@ -187,23 +187,34 @@ export const Step1Input: React.FC<Step1InputProps> = ({
               </select>
             </div>
 
-            {/* 4. 背景画質 (Q3: B案 AI動画生成デフォルト) */}
+            {/* 4. 背景画質 (静止画 vs AI動画) */}
             <div>
               <label className="text-[11px] font-semibold text-on-surface-variant block mb-1.5">
                 背景素材品質
               </label>
-              <div className="p-1 rounded-xl bg-surface-container flex items-center">
+              <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-surface-container">
+                <button
+                  type="button"
+                  onClick={() => setOptions({ ...options, quality: "economy" })}
+                  className={`py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                    options.quality === "economy"
+                      ? "bg-white dark:bg-[#151926] text-primary shadow-sm"
+                      : "text-on-surface-variant hover:text-on-surface"
+                  }`}
+                >
+                  <span>🖼️ 静止画</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setOptions({ ...options, quality: "premium_video" })}
-                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${
+                  className={`py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
                     options.quality === "premium_video"
-                      ? "bg-surface-container-lowest text-primary shadow-sm"
+                      ? "bg-white dark:bg-[#151926] text-primary shadow-sm"
                       : "text-on-surface-variant hover:text-on-surface"
                   }`}
                 >
                   <Video className="w-3.5 h-3.5" />
-                  <span>AI動画生成 (B案)</span>
+                  <span>AI動画</span>
                 </button>
               </div>
             </div>

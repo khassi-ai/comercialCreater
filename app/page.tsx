@@ -116,9 +116,47 @@ export default function Home() {
     executeScenarioGeneration(user.id);
   };
 
-  // 実際のシナリオ生成API呼び出し
+  // 実際のシナリオ生成API呼び出し（先行遷移 ＆ スケルトン表示）
   const executeScenarioGeneration = async (userId: string) => {
+    // 1. 先行遷移用のプレースホルダーを作成して即座にStep 2へ
+    const count = options.sceneCount || 4;
+    const placeholderScenes = Array.from({ length: count }).map((_, i) => ({
+      id: i + 1,
+      role:
+        i === 0
+          ? "フック"
+          : i === count - 1
+          ? "CTA"
+          : `ポイント ${i}`,
+      durationInSeconds: 5,
+      durationInFrames: 150,
+      heading: "AIがテロップを考案中...",
+      subBadge: "分析中",
+      subtitle: "LPのテキストを解析して最適なテロップを設計しています...",
+      narration: "最適なナレーション原稿を生成しています...",
+      bgThumbnail: `generated/scene${(i % 4) + 1}_bg.png`,
+      bgUrl: `/generated/scene${(i % 4) + 1}_bg.png`,
+      bgFile:
+        options.quality === "premium_video"
+          ? `generated/scene${(i % 4) + 1}_bg.mp4`
+          : `generated/scene${(i % 4) + 1}_bg.png`,
+      bgMode: (options.quality === "premium_video" ? "video" : "image") as any,
+      bgPrompt: "高解像度背景メディアを計画中...",
+      textPlacement: "center" as const,
+    }));
+
+    setScenario({
+      title: "AI広告台本を考案中...",
+      aspectRatio: options.aspectRatio,
+      cmType: "dated",
+      tone: options.tone,
+      visualTheme: "dojo-scroll",
+      fps: 30,
+      scenes: placeholderScenes,
+    });
     setLoadingScenario(true);
+    setCurrentStep(2); // ★即座にStep 2へ先行遷移
+
     try {
       const res = await fetch("/api/generate/scenario", {
         method: "POST",
@@ -140,9 +178,9 @@ export default function Home() {
       if (data.remainingCredits !== undefined && user) {
         setUser({ ...user, credits: data.remainingCredits });
       }
-      setCurrentStep(2);
     } catch (err: any) {
       alert(err.message || "エラーが発生しました");
+      setCurrentStep(1); // 失敗時はStep 1に戻す
     } finally {
       setLoadingScenario(false);
     }
@@ -244,6 +282,7 @@ export default function Home() {
             onBack={() => setCurrentStep(1)}
             onSubmit={handleStep2Submit}
             loading={loadingAssets}
+            isGeneratingScenario={loadingScenario}
           />
         )}
 

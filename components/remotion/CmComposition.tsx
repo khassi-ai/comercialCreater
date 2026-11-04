@@ -1,24 +1,45 @@
 import React from "react";
-import { AbsoluteFill, Audio, Series, interpolate, useCurrentFrame } from "remotion";
-import { ScenarioData, SceneData } from "../../lib/types";
+import {
+  AbsoluteFill,
+  Audio,
+  Series,
+  interpolate,
+  staticFile,
+  useCurrentFrame,
+} from "remotion";
+import { ScenarioData, SceneData } from "@/lib/types";
 import { BackgroundMedia } from "./BackgroundMedia";
 import { ImpactHeading } from "./ImpactHeading";
 import { AnimatedSubtitle } from "./AnimatedSubtitle";
 import { InfoBoardScene } from "./InfoBoardScene";
 
+const resolveMediaUrl = (file?: string): string => {
+  if (!file) return "";
+  if (
+    file.startsWith("http://") ||
+    file.startsWith("https://") ||
+    file.startsWith("data:")
+  ) {
+    return file;
+  }
+  return file.startsWith("/") ? file : `/${file}`;
+};
+
 const SceneTransitionFlash: React.FC = () => {
   const frame = useCurrentFrame();
-  const flashOpacity = interpolate(frame, [0, 5], [0.4, 0], {
+  const flashOpacity = interpolate(frame, [0, 5], [0.42, 0], {
+    extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
+
   if (flashOpacity <= 0.01) return null;
+
   return (
     <AbsoluteFill
       style={{
-        backgroundColor: "#ffffff",
+        backgroundColor: "#fef08a",
         opacity: flashOpacity,
         pointerEvents: "none",
-        zIndex: 50,
       }}
     />
   );
@@ -28,70 +49,121 @@ interface SingleSceneProps {
   scene: SceneData;
   sceneIndex: number;
   totalScenes: number;
+  scenario: ScenarioData;
 }
 
 const SingleSceneView: React.FC<SingleSceneProps> = ({
   scene,
   sceneIndex,
   totalScenes,
+  scenario,
 }) => {
-  const isFinalScene = sceneIndex === totalScenes - 1;
+  const isFinalScene =
+    sceneIndex === totalScenes - 1 || Boolean(scene.infoBoard);
+  const activeSubtitle =
+    scenario.cmType === "evergreen" && scene.subtitleEvergreen
+      ? scene.subtitleEvergreen
+      : scenario.cmType === "dated" && scene.subtitleDated
+      ? scene.subtitleDated
+      : scene.subtitle;
+
+  const visualTheme = scenario.visualTheme || "dojo-scroll";
+  const textPlacement =
+    scene.textPlacement ||
+    (sceneIndex === 1 ? "left" : sceneIndex === 2 ? "right" : "center");
+  const frameStyle =
+    scene.frameStyle ||
+    (visualTheme === "dojo-scroll"
+      ? sceneIndex % 2 === 0
+        ? "makimono"
+        : "byobu"
+      : "glass");
 
   return (
     <AbsoluteFill>
+      {/* Dynamic Camera + Placement Contrast Shield + 30fps Particle Atmosphere */}
       <BackgroundMedia
-        bgUrl={scene.bgUrl}
+        bgFile={scene.bgFile}
         bgMode={scene.bgMode}
         sceneIndex={sceneIndex}
         durationInFrames={scene.durationInFrames}
-        textPlacement={scene.textPlacement}
+        tone={scenario.tone}
+        visualTheme={visualTheme}
+        textPlacement={isFinalScene ? "center" : textPlacement}
       />
 
-      <ImpactHeading
-        heading={scene.heading}
-        subBadge={scene.subBadge}
-        textPlacement={scene.textPlacement}
-        isFinalScene={isFinalScene}
-      />
-
-      {isFinalScene && scene.infoBoard ? (
-        <InfoBoardScene infoBoard={scene.infoBoard} />
+      {/* Scene 1-3: Unrolling Scroll / Folding Screen / Impact Heading vs Scene 4: Information Board */}
+      {isFinalScene ? (
+        <InfoBoardScene
+          heading={scene.heading}
+          subBadge={scene.subBadge}
+          infoBoard={scene.infoBoard}
+          aspectRatio={scenario.aspectRatio}
+          cmType={scenario.cmType}
+          tone={scenario.tone}
+          visualTheme={visualTheme}
+          frameStyle={frameStyle}
+        />
       ) : (
-        <AnimatedSubtitle
-          subtitle={scene.subtitle}
-          durationInFrames={scene.durationInFrames}
+        <ImpactHeading
+          heading={scene.heading}
+          subBadge={scene.subBadge}
+          role={scene.role}
+          sceneNumber={sceneIndex + 1}
+          aspectRatio={scenario.aspectRatio}
+          tone={scenario.tone}
+          visualTheme={visualTheme}
+          textPlacement={textPlacement}
+          frameStyle={frameStyle}
         />
       )}
 
-      {scene.audioUrl && <Audio src={scene.audioUrl} />}
+      {/* Bottom Animated Subtitle */}
+      <AnimatedSubtitle
+        subtitle={activeSubtitle}
+        aspectRatio={scenario.aspectRatio}
+        durationInFrames={scene.durationInFrames}
+        tone={scenario.tone}
+      />
 
-      {sceneIndex > 0 && <SceneTransitionFlash />}
+      {/* Audio Track (Frame-Accurate Synchronization) */}
+      {scene.audioFile ? (
+        <Audio src={resolveMediaUrl(scene.audioFile)} />
+      ) : null}
+
+      {/* Cut Flash on Scene Entry */}
+      {sceneIndex > 0 ? <SceneTransitionFlash /> : null}
     </AbsoluteFill>
   );
 };
 
-export const CmComposition: React.FC<{ scenario: ScenarioData }> = ({
-  scenario,
-}) => {
-  const scenes = scenario.scenes || [];
+export interface CmCompositionProps {
+  scenario?: ScenarioData;
+  [key: string]: any;
+}
+
+export const CmComposition: React.FC<CmCompositionProps> = (rawProps) => {
+  const scenario: ScenarioData =
+    rawProps.scenario || (rawProps as unknown as ScenarioData);
+  const scenes = scenario?.scenes || [];
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "#000000" }}>
+    <AbsoluteFill style={{ backgroundColor: "#020617" }}>
       <Series>
-        {scenes.map((scene, idx) => (
-          <Series.Sequence
-            key={scene.id || idx}
-            durationInFrames={Math.max(30, scene.durationInFrames || 135)}
-          >
-            <SingleSceneView
-              scene={scene}
-              sceneIndex={idx}
-              totalScenes={scenes.length}
-            />
-          </Series.Sequence>
-        ))}
+        {scenes.map((scene, index) => {
+          const duration = Math.max(30, Math.round(scene.durationInFrames || 135));
+          return (
+            <Series.Sequence key={scene.id || index} durationInFrames={duration}>
+              <SingleSceneView
+                scene={scene}
+                sceneIndex={index}
+                totalScenes={scenes.length}
+                scenario={scenario}
+              />
+            </Series.Sequence>
+          );
+        })}
       </Series>
     </AbsoluteFill>
   );
 };
-

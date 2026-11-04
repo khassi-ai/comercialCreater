@@ -10,6 +10,7 @@ interface Step2ReviewProps {
   onBack: () => void;
   onSubmit: () => void;
   loading: boolean;
+  isGeneratingScenario?: boolean;
 }
 
 export const Step2Review: React.FC<Step2ReviewProps> = ({
@@ -18,6 +19,7 @@ export const Step2Review: React.FC<Step2ReviewProps> = ({
   onBack,
   onSubmit,
   loading,
+  isGeneratingScenario = false,
 }) => {
   const handleSceneChange = (
     index: number,
@@ -35,7 +37,37 @@ export const Step2Review: React.FC<Step2ReviewProps> = ({
   const estimatedTotalCredits = (scenario.scenes?.length || 4) * (15 + 150); // TTS + AI動画
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 py-4 animate-in fade-in duration-300">
+    <div className="w-full max-w-5xl mx-auto px-4 py-4 animate-in fade-in duration-300 relative">
+      {/* AI構成案 先行遷移時の生成中レイヤー（操作不可 ＆ スケルトンが埋まっていく体験） */}
+      {isGeneratingScenario && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface/75 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="max-w-md w-full mx-4 p-8 rounded-3xl bg-surface-container-lowest border border-primary/30 shadow-2xl text-center space-y-5">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/10 text-primary flex items-center justify-center animate-bounce">
+              <Sparkles className="w-8 h-8 text-primary" />
+            </div>
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary font-bold text-xs mb-2">
+                <span>Gemini 3.8 Flash 起動中</span>
+              </div>
+              <h3 className="text-xl font-bold font-display text-on-surface">
+                CMストーリーボードを企画・構成中...
+              </h3>
+              <p className="text-xs text-on-surface-variant mt-2 leading-relaxed">
+                LPの訴求ポイント・ターゲットの心理動線を徹底分析し、
+                成約率を最大化する{scenario.scenes.length || 4}つのカット構成を組み立てています。
+              </p>
+            </div>
+            <div className="w-full bg-surface-container rounded-full h-2 overflow-hidden">
+              <div className="h-full bg-primary rounded-full animate-pulse w-3/4" />
+            </div>
+            <div className="text-[11px] text-primary font-semibold flex items-center justify-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-primary animate-ping" />
+              <span>構成カードを順次展開中（まもなく完了します）</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ヘッダー情報 */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -95,21 +127,47 @@ export const Step2Review: React.FC<Step2ReviewProps> = ({
               </div>
 
               {/* プレビュー枠 */}
-              <div className="relative aspect-video rounded-xl overflow-hidden border border-outline-variant/30 bg-black/50 flex items-center justify-center">
-                {scene.bgUrl ? (
-                  <img src={scene.bgUrl} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="text-center p-3 text-white/70">
-                    <Video className="w-6 h-6 mx-auto mb-1 text-primary-container" />
-                    <span className="text-[10px] block font-mono line-clamp-2">
-                      {scene.bgPrompt || "AI背景動画"}
-                    </span>
+              {(() => {
+                const previewImg =
+                  scene.bgThumbnail
+                    ? (scene.bgThumbnail.startsWith("/") ? scene.bgThumbnail : `/${scene.bgThumbnail}`)
+                    : scene.bgUrl ||
+                      (scene.bgFile?.endsWith(".png")
+                        ? (scene.bgFile.startsWith("/") ? scene.bgFile : `/${scene.bgFile}`)
+                        : `/generated/scene${(idx % 4) + 1}_bg.png`);
+                return (
+                  <div className="relative aspect-video rounded-xl overflow-hidden border border-outline-variant/30 bg-black/70 flex items-center justify-center group shadow-md">
+                    <img
+                      src={previewImg}
+                      alt={`カット ${idx + 1} 背景`}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `/generated/scene${(idx % 4) + 1}_bg.png`;
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
+
+                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-mono">
+                      {scenario.aspectRatio || "16:9"}
+                    </div>
+
+                    <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-primary/80 backdrop-blur-sm text-white text-[10px] font-bold flex items-center gap-1 shadow-sm">
+                      {scene.bgMode === "video" ? (
+                        <>
+                          <Video className="w-3 h-3" />
+                          <span>AI動画</span>
+                        </>
+                      ) : (
+                        <span>🖼️ 静止画</span>
+                      )}
+                    </div>
+
+                    <div className="absolute bottom-1.5 inset-x-2 text-[10px] text-white/90 truncate font-mono bg-black/50 px-2 py-0.5 rounded backdrop-blur-xs">
+                      {scene.bgPrompt || "AI背景メディア"}
+                    </div>
                   </div>
-                )}
-                <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-mono">
-                  {scenario.aspectRatio || "16:9"}
-                </div>
-              </div>
+                );
+              })()}
             </div>
 
             {/* 右側: テロップ・ナレーション・字幕エディタ */}

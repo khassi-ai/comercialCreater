@@ -1,67 +1,133 @@
 import React from "react";
-import { interpolate, useCurrentFrame } from "remotion";
+import {
+  AbsoluteFill,
+  interpolate,
+  spring,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
+import { loadFont } from "@remotion/google-fonts/NotoSansJP";
+import { AspectRatio, CmTone } from "@/lib/types";
+
+const { fontFamily } = loadFont("normal", {
+  weights: ["700", "900"],
+});
 
 interface AnimatedSubtitleProps {
   subtitle: string;
+  aspectRatio: AspectRatio;
   durationInFrames: number;
+  tone: CmTone;
 }
+
+const TONE_ACCENT_COLOR: Record<CmTone, string> = {
+  passionate: "#f59e0b",
+  smart: "#38bdf8",
+  friendly: "#34d399",
+};
 
 export const AnimatedSubtitle: React.FC<AnimatedSubtitleProps> = ({
   subtitle,
+  aspectRatio,
   durationInFrames,
+  tone,
 }) => {
   const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const isPortrait = aspectRatio === "9:16";
+  const accentColor = TONE_ACCENT_COLOR[tone] || "#f59e0b";
 
-  // フェードイン＆フェードアウト
-  const opacity = interpolate(
+  if (!subtitle || subtitle.trim().length === 0) {
+    return null;
+  }
+
+  const entrance = spring({
     frame,
-    [0, 8, durationInFrames - 8, durationInFrames],
-    [0, 1, 1, 0],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-  );
-
-  const translateY = interpolate(frame, [0, 8], [15, 0], {
-    extrapolateRight: "clamp",
+    fps,
+    config: {
+      damping: 16,
+      stiffness: 180,
+      mass: 0.6,
+    },
   });
 
+  const exitOpacity = interpolate(
+    frame,
+    [Math.max(10, durationInFrames - 8), Math.max(12, durationInFrames)],
+    [1, 0],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
+  );
+
+  const progressPercent = interpolate(
+    frame,
+    [0, Math.max(1, durationInFrames - 1)],
+    [0, 100],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
+  );
+
   return (
-    <div
+    <AbsoluteFill
       style={{
-        position: "absolute",
-        bottom: "8%",
-        left: "50%",
-        transform: `translateX(-50%) translateY(${translateY}px)`,
-        maxWidth: "85%",
-        zIndex: 20,
-        opacity,
+        fontFamily,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "flex-end",
+        alignItems: "center",
+        paddingBottom: isPortrait ? 96 : 52,
+        paddingLeft: isPortrait ? 36 : 80,
+        paddingRight: isPortrait ? 36 : 80,
+        pointerEvents: "none",
       }}
     >
       <div
         style={{
-          padding: "16px 36px",
-          backgroundColor: "rgba(10, 14, 24, 0.88)",
-          border: "1px solid rgba(255, 255, 255, 0.15)",
-          borderRadius: "16px",
+          opacity: entrance * exitOpacity,
+          transform: `translateY(${interpolate(entrance, [0, 1], [24, 0])}px)`,
+          background: "rgba(6, 10, 22, 0.88)",
           backdropFilter: "blur(12px)",
-          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.6)",
+          border: "2px solid rgba(255, 255, 255, 0.2)",
+          borderRadius: 20,
+          padding: isPortrait ? "20px 32px 24px 32px" : "16px 44px 20px 44px",
+          maxWidth: isPortrait ? "96%" : "86%",
+          boxShadow: "0 16px 40px rgba(0, 0, 0, 0.7)",
+          position: "relative",
+          overflow: "hidden",
+          textAlign: "center",
         }}
       >
-        <p
+        <div
           style={{
-            margin: 0,
+            fontSize: isPortrait ? 34 : 38,
+            fontWeight: 700,
             color: "#ffffff",
-            fontSize: "28px",
-            fontWeight: 600,
-            textAlign: "center",
-            letterSpacing: "0.02em",
-            fontFamily: "'Plus Jakarta Sans', sans-serif",
-            textShadow: "0 2px 4px rgba(0,0,0,0.5)",
+            lineHeight: 1.38,
+            letterSpacing: "0.04em",
+            textShadow: "0 2px 8px rgba(0, 0, 0, 0.85)",
           }}
         >
           {subtitle}
-        </p>
+        </div>
+
+        {/* Deterministic Audio-Synced Bottom Progress Bar */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            height: 5,
+            width: `${progressPercent}%`,
+            background: accentColor,
+            boxShadow: `0 0 12px ${accentColor}`,
+          }}
+        />
       </div>
-    </div>
+    </AbsoluteFill>
   );
 };
 
