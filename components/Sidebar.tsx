@@ -47,7 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       />
 
       {/* ドロワーパネル */}
-      <div className="relative w-80 sm:w-96 max-w-[85vw] h-full bg-surface-container-lowest border-r border-outline-variant/30 shadow-2xl flex flex-col z-10 transition-transform">
+      <div className="relative w-80 sm:w-96 max-w-[85vw] h-full bg-white dark:bg-[#151926] border-r border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col z-10 transition-transform">
         {/* ヘッダー */}
         <div className="p-4 border-b border-outline-variant/20 flex items-center justify-between">
           <div className="flex items-center gap-2">

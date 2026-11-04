@@ -43,7 +43,7 @@ export const CostModal: React.FC<CostModalProps> = ({
         onClick={onClose}
       />
 
-      <div className="relative w-full max-w-xl bg-surface-container-lowest border border-outline-variant/30 rounded-2xl shadow-2xl p-6 sm:p-8 z-10 max-h-[90vh] flex flex-col">
+      <div className="relative w-full max-w-xl bg-white dark:bg-[#151926] border border-slate-200 dark:border-slate-700/60 rounded-3xl shadow-2xl p-6 sm:p-8 z-10 max-h-[90vh] flex flex-col">
         {/* ヘッダー */}
         <div className="flex items-center justify-between pb-4 border-b border-outline-variant/20">
           <div className="flex items-center gap-2.5">

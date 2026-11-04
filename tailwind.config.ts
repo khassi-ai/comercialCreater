@@ -25,6 +25,8 @@ const config: Config = {
           low: "var(--surface-container-low)",
           high: "var(--surface-container-high)",
           highest: "var(--surface-container-highest)",
+          lowest: "var(--surface-container-lowest)",
+          "container-lowest": "var(--surface-container-lowest)",
           dim: "var(--surface-dim)",
         },
         "on-surface": {
