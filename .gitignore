@@ -15,6 +15,7 @@ gcp-key*.json
 
 # Dependencies & Build artifacts
 node_modules/
+.next/
 out/
 logs/
 public/generated/
