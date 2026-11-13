@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Player } from "@remotion/player";
+import React, { useState, useEffect, useRef } from "react";
+import { Player, PlayerRef } from "@remotion/player";
 import {
   Check,
   Sparkles,
@@ -11,6 +11,8 @@ import {
   Film,
   CheckCircle2,
   Volume2,
+  VolumeX,
+  Play,
   Loader2,
   Clock,
   Video,
@@ -34,6 +36,15 @@ export const Step3ProgressAndResult: React.FC<Step3ProgressAndResultProps> = ({
 }) => {
   const [pipelineStep, setPipelineStep] = useState(1);
   const [completedCutIndex, setCompletedCutIndex] = useState<number>(0);
+  const playerRef = useRef<PlayerRef>(null);
+
+  const handleUnmuteAndPlay = () => {
+    if (playerRef.current) {
+      playerRef.current.unmute();
+      playerRef.current.seekTo(0);
+      playerRef.current.play();
+    }
+  };
 
   const scenes = scenario.scenes || [];
   const sceneCount = scenes.length || 4;
@@ -295,17 +306,27 @@ export const Step3ProgressAndResult: React.FC<Step3ProgressAndResultProps> = ({
         /* 生成完了時: Remotion Player プレビュー画面 */
         <div className="space-y-6">
           <div className="p-4 sm:p-6 rounded-2xl bg-surface-container-lowest border border-outline-variant/30 shadow-2xl flex flex-col items-center">
-            {/* 音声ガイダンスバナー */}
-            <div className="w-full max-w-4xl mb-4 p-3 rounded-xl bg-primary/10 border border-primary/20 flex items-center gap-3 text-xs text-on-surface">
-              <div className="p-1 rounded-lg bg-primary text-white">
-                <Volume2 className="w-4 h-4" />
+            {/* 音声ガイダンス ＆ ワンクリック音声再生ボタン */}
+            <div className="w-full max-w-4xl mb-4 p-3.5 rounded-xl bg-primary/10 border border-primary/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-on-surface">
+              <div className="flex items-center gap-3">
+                <div className="p-1.5 rounded-lg bg-primary text-white">
+                  <Volume2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <strong>高音質AIナレーション音声が各カットに同期されています。</strong>
+                  <div className="text-[11px] text-on-surface-variant mt-0.5">
+                    ブラウザの消音対策として、下のボタンから音声付きで最初から再生できます。
+                  </div>
+                </div>
               </div>
-              <div className="flex-1">
-                <strong>高音質ナレーション音声が同期再生されます。</strong>
-                <span className="text-on-surface-variant ml-1">
-                  （ブラウザの自動再生ポリシーにより消音になっている場合は、画面またはプレイヤーのスピーカーアイコンをクリックしてください）
-                </span>
-              </div>
+              <button
+                type="button"
+                onClick={handleUnmuteAndPlay}
+                className="w-full sm:w-auto px-4 py-2 rounded-lg bg-primary text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm hover:bg-primary-hover active:scale-95 transition-all cursor-pointer shrink-0"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>音声をオンにして最初から再生</span>
+              </button>
             </div>
 
             {/* Player コンテナ */}
@@ -315,6 +336,7 @@ export const Step3ProgressAndResult: React.FC<Step3ProgressAndResultProps> = ({
               }`}
             >
               <Player
+                ref={playerRef}
                 component={CmComposition}
                 inputProps={{ scenario }}
                 durationInFrames={totalFrames}
@@ -376,13 +398,29 @@ export const Step3ProgressAndResult: React.FC<Step3ProgressAndResultProps> = ({
                         カット {idx + 1}
                       </div>
                     </div>
-                    <div className="p-3">
-                      <div className="font-bold text-xs text-on-surface truncate">
-                        {sc.heading}
+                    <div className="p-3 space-y-2">
+                      <div>
+                        <div className="font-bold text-xs text-on-surface truncate">
+                          {sc.heading}
+                        </div>
+                        <div className="text-[10px] text-on-surface-variant truncate mt-0.5">
+                          {sc.narration}
+                        </div>
                       </div>
-                      <div className="text-[10px] text-on-surface-variant truncate mt-0.5">
-                        {sc.narration}
-                      </div>
+
+                      {sc.audioFile && (
+                        <div className="pt-2 border-t border-outline-variant/20">
+                          <div className="flex items-center gap-1 text-[10px] text-primary font-bold mb-1">
+                            <Volume2 className="w-3 h-3" />
+                            <span>ナレーション音声試聴:</span>
+                          </div>
+                          <audio
+                            controls
+                            src={sc.audioFile.startsWith("/") ? sc.audioFile : `/${sc.audioFile}`}
+                            className="w-full h-7 text-xs"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

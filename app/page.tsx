@@ -241,12 +241,24 @@ export default function Home() {
     setCurrentStep(1);
   };
 
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    setUser(null);
+    setShowSidebar(false);
+    setShowCostModal(false);
+    setScenario(null);
+    setCurrentProjectId(null);
+    setCurrentStep(1);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-surface transition-colors">
       {/* グローバルヘッダー */}
       <Header
         user={user}
         onOpenAuth={() => setShowAuthModal(true)}
+        onLogout={handleLogout}
         onOpenSidebar={() => setShowSidebar(true)}
         onOpenCostModal={() => setShowCostModal(true)}
         isDark={isDark}

@@ -1,4 +1,7 @@
+import fs from "node:fs";
+import path from "node:path";
 import { GoogleGenAI } from "@google/genai";
+import { generateSceneBackgroundImage } from "./image";
 
 export async function generateSceneBackgroundMedia({
   bgPrompt,
@@ -6,83 +9,92 @@ export async function generateSceneBackgroundMedia({
   textPlacement = "center",
   sceneId = 1,
   tone = "passionate",
+  outputPath,
 }: {
   bgPrompt: string;
   aspectRatio?: "16:9" | "9:16";
   textPlacement?: "center" | "left" | "right";
   sceneId?: number;
   tone?: string;
+  outputPath?: string;
 }): Promise<{ mediaUrl: string; mode: "video" | "image" }> {
   const apiKey = process.env.GEMINI_API_KEY;
   const isLandscape = aspectRatio !== "9:16";
 
   const placementRule =
     textPlacement === "left"
-      ? "LAYOUT: Left 50% must be clean, uncluttered, dark high-contrast negative space for typography. All main visual subjects and glowing elements on the RIGHT 50%."
+      ? "LAYOUT: Left 50% must be clean, dark negative space for text overlay. Main visual subjects on the RIGHT 50%."
       : textPlacement === "right"
-      ? "LAYOUT: Right 50% must be clean, uncluttered, dark high-contrast negative space for typography. All main visual subjects on the LEFT 50%."
-      : "LAYOUT: Center should have balanced soft lighting and deep contrasting tones for central text panel.";
+      ? "LAYOUT: Right 50% must be clean, dark negative space for text overlay. Main visual subjects on the LEFT 50%."
+      : "LAYOUT: Center should be clean and dark with high contrast for text readability.";
 
-  const fullPrompt = `${bgPrompt}. ${placementRule}, ${
+  const videoPrompt = `${bgPrompt}. ${placementRule}, ${
     isLandscape ? "16:9 widescreen" : "9:16 vertical portrait"
-  }, cinematic lighting, 4k high aesthetic, strictly no text, no characters, no subtitles, no watermark`;
+  }, cinematic lighting, photorealistic high aesthetic motion video, smooth ambient camera drift, strictly no text, no characters, no subtitles, no watermark`;
 
   if (apiKey) {
+    const ai = new GoogleGenAI({ apiKey });
+
+    // 1. AI Video Generation with gemini-omni-1.1-flash (Interactions API)
     try {
-      const ai = new GoogleGenAI({ apiKey });
-      // 画像または動画生成の試行 (Gemini Flash Image / Imagen)
-      const res = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
-        contents: `Generate a visually stunning background video thumbnail or keyframe: ${fullPrompt}`,
+      console.log(`[Video scene ${sceneId}] Requesting AI video with gemini-omni-1.1-flash...`);
+      if (ai.interactions?.create) {
+        // タイムアウト20秒（待機が長くなりすぎないよう安全に設定）
+        const interactionPromise = ai.interactions.create({
+          model: "gemini-omni-1.1-flash",
+          input: videoPrompt,
+          response_format: {
+            type: "video",
+            aspect_ratio: isLandscape ? "16:9" : "9:16",
+          },
+        });
+
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Video generation timed out (20s)")), 20000)
+        );
+
+        const interaction = await Promise.race([interactionPromise, timeoutPromise]);
+        const outputVideo = (interaction as any)?.output_video;
+        if (outputVideo?.data && outputPath) {
+          const buf = Buffer.from(outputVideo.data, "base64");
+          fs.writeFileSync(outputPath, buf);
+          console.log(`[Video scene ${sceneId}] AI video saved to ${outputPath} (${buf.length} bytes)`);
+          return {
+            mediaUrl: outputPath,
+            mode: "video",
+          };
+        }
+      }
+    } catch (vidErr: any) {
+      console.warn(`[Video scene ${sceneId}] Video generation fallback to high-res image:`, vidErr.message);
+    }
+
+    // 2. Fallback to fast photorealistic image with camera work
+    try {
+      console.log(`[Video scene ${sceneId}] Generating high-res keyframe image...`);
+      const imgResult = await generateSceneBackgroundImage({
+        bgPrompt,
+        aspectRatio,
+        textPlacement,
+        sceneId,
       });
 
-      const parts = res.candidates?.[0]?.content?.parts || [];
-      const imagePart = parts.find((p: any) => p.inlineData?.data);
-      if (imagePart?.inlineData?.data) {
+      if (outputPath) {
+        const imagePath = outputPath.replace(/\.mp4$/, ".png");
+        fs.writeFileSync(imagePath, imgResult.imageBuffer);
         return {
-          mediaUrl: `data:${imagePart.inlineData.mimeType || "image/png"};base64,${
-            imagePart.inlineData.data
-          }`,
+          mediaUrl: imagePath,
           mode: "image",
         };
       }
-    } catch (err) {
-      console.warn(`AI Background generation fallback for scene ${sceneId}:`, err);
+    } catch (imgErr: any) {
+      console.warn(`[Video scene ${sceneId}] Keyframe image generation fallback:`, imgErr.message);
     }
   }
 
-  // 美しいプロシージャル・グラデーション背景（フォールバック）
-  // 16:9 のシネマティックな暗色グラデーション
-  const gradients = [
-    "linear-gradient(135deg, #0d1322 0%, #172554 50%, #1e1b4b 100%)", // Scene 1: 深紺・ブルー
-    "linear-gradient(135deg, #180d24 0%, #311042 50%, #1c1917 100%)", // Scene 2: プレミアムパープル
-    "linear-gradient(135deg, #0a1f1c 0%, #064e3b 50%, #022c22 100%)", // Scene 3: エメラルド
-    "linear-gradient(135deg, #1c1917 0%, #451a03 50%, #1e1b4b 100%)", // Scene 4: アンバー・ゴールド
-  ];
-  const bgGrad = gradients[(sceneId - 1) % gradients.length];
-
-  // SVG Data URLを生成
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
-    <defs>
-      <radialGradient id="glow" cx="${textPlacement === 'left' ? '75%' : textPlacement === 'right' ? '25%' : '50%'}" cy="50%" r="60%">
-        <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.35"/>
-        <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
-      </radialGradient>
-      <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#090d16"/>
-        <stop offset="50%" stop-color="#141a29"/>
-        <stop offset="100%" stop-color="#0b0f19"/>
-      </linearGradient>
-    </defs>
-    <rect width="1920" height="1080" fill="url(#bg)"/>
-    <circle cx="${textPlacement === 'left' ? 1400 : textPlacement === 'right' ? 520 : 960}" cy="540" r="480" fill="url(#glow)"/>
-    <circle cx="${textPlacement === 'left' ? 1200 : 720}" cy="300" r="260" fill="#2563eb" opacity="0.12" filter="blur(60px)"/>
-  </svg>`;
-
-  const svgBase64 = Buffer.from(svg).toString("base64");
+  // 3. プロシージャル背景（完全オフライン時）
   return {
-    mediaUrl: `data:image/svg+xml;base64,${svgBase64}`,
+    mediaUrl: `/generated/scene${(sceneId % 4) + 1}_bg.png`,
     mode: "image",
   };
 }
-

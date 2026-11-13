@@ -74,7 +74,7 @@ export function estimateSecondsFromText(text: string): number {
 }
 
 /**
- * Gemini TTS またはモックで音声を合成し、WAVバッファと実測秒数を返す
+ * Gemini TTS で音声を合成し、WAVバッファと実測秒数を返す
  */
 export async function synthesizeNarrationAudio({
   text,
@@ -89,82 +89,68 @@ export async function synthesizeNarrationAudio({
   const voiceName =
     voiceType === "professional" ? "Aoede" : voiceType === "calm" ? "Charon" : "Puck";
 
-  if (apiKey) {
-    try {
-      const ai = new GoogleGenAI({ apiKey });
-      const prompt = `以下の日本語文章を、広告動画のナレーションとしてハッキリと力強く、魅力的に読み上げてください。\n\n「${text}」`;
+  const ttsModels = [
+    "gemini-3.8-flash-lite-tts",
+    "gemini-3.8-flash-tts",
+    "gemini-3.1-flash-tts-preview",
+  ];
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash", // 最新の推奨モデル
-        contents: prompt,
-        config: {
-          responseModalities: ["AUDIO"],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName,
+  if (apiKey) {
+    const ai = new GoogleGenAI({ apiKey });
+    const prompt = `以下の日本語文章を、広告動画のナレーションとしてハッキリと力強く、魅力的に読み上げてください。\n\n「${text}」`;
+
+    for (const model of ttsModels) {
+      try {
+        console.log(`[TTS scene ${sceneId}] Requesting audio with model ${model}, voice ${voiceName}...`);
+        const response = await ai.models.generateContent({
+          model,
+          contents: prompt,
+          config: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName,
+                },
               },
             },
           },
-        },
-      });
+        });
 
-      const parts = response.candidates?.[0]?.content?.parts || [];
-      const audioPart = parts.find((p: any) => p.inlineData?.data);
-      if (audioPart?.inlineData?.data) {
-        const rawBuf = Buffer.from(audioPart.inlineData.data, "base64");
-        let wavBuf: Buffer;
-        if (rawBuf.length > 12 && rawBuf.toString("ascii", 0, 4) === "RIFF") {
-          wavBuf = rawBuf;
-        } else {
-          // PCMにWAVヘッダー付与
-          const padSamples = Math.round(24000 * 0.2);
-          const padBuf = Buffer.alloc(padSamples * 2);
-          const combined = Buffer.concat([rawBuf, padBuf]);
-          const header = createWavHeader(combined.length, 24000, 1, 16);
-          wavBuf = Buffer.concat([header, combined]);
+        const parts = response.candidates?.[0]?.content?.parts || [];
+        const audioPart = parts.find((p: any) => p.inlineData?.data);
+        if (audioPart?.inlineData?.data) {
+          const rawBuf = Buffer.from(audioPart.inlineData.data, "base64");
+          let wavBuf: Buffer;
+          if (rawBuf.length > 12 && rawBuf.toString("ascii", 0, 4) === "RIFF") {
+            wavBuf = rawBuf;
+          } else {
+            // PCMにWAVヘッダー付与 (24kHz 16-bit mono)
+            const padSamples = Math.round(24000 * 0.2);
+            const padBuf = Buffer.alloc(padSamples * 2);
+            const combined = Buffer.concat([rawBuf, padBuf]);
+            const header = createWavHeader(combined.length, 24000, 1, 16);
+            wavBuf = Buffer.concat([header, combined]);
+          }
+          const durationSec = measureWavDuration(wavBuf);
+          console.log(`[TTS scene ${sceneId}] SUCCESS with ${model}: duration = ${durationSec}s`);
+          return {
+            audioBase64: `data:audio/wav;base64,${wavBuf.toString("base64")}`,
+            durationInSeconds: durationSec,
+            durationInFrames: Math.round(durationSec * 30),
+          };
         }
-        const durationSec = measureWavDuration(wavBuf);
-        return {
-          audioBase64: `data:audio/wav;base64,${wavBuf.toString("base64")}`,
-          durationInSeconds: durationSec,
-          durationInFrames: Math.round(durationSec * 30),
-        };
+      } catch (err: any) {
+        console.warn(`[TTS scene ${sceneId}] ${model} failed: ${err.message}, trying next model...`);
       }
-    } catch (err) {
-      console.warn(`Gemini TTS failed for scene ${sceneId}, using synthesized tone fallback:`, err);
     }
   }
 
-  // フォールバック: 心地よいチャイム音の合成WAV
+  // フォールバック（チャイム効果音などの不要な音は一切鳴らさず、無音の安全なWAVを生成）
   const targetSec = estimateSecondsFromText(text);
   const sampleRate = 24000;
   const totalSamples = Math.round(targetSec * sampleRate);
-  const pcmBuffer = Buffer.alloc(totalSamples * 2);
-
-  const chords = [
-    [523.25, 659.25, 783.99],
-    [587.33, 739.99, 880.0],
-    [659.25, 830.61, 987.77],
-    [523.25, 659.25, 1046.5],
-  ];
-  const freqs = chords[(sceneId - 1) % chords.length];
-
-  for (let i = 0; i < totalSamples; i++) {
-    const t = i / sampleRate;
-    let sample = 0;
-    if (t < 0.6) {
-      const env = Math.exp(-t * 5) * Math.min(1, t / 0.02);
-      sample +=
-        (Math.sin(2 * Math.PI * freqs[0] * t) * 0.4 +
-          Math.sin(2 * Math.PI * freqs[1] * t) * 0.35 +
-          Math.sin(2 * Math.PI * freqs[2] * t) * 0.25) *
-        env *
-        0.25;
-    }
-    const intSample = Math.max(-32767, Math.min(32767, Math.round(sample * 32767)));
-    pcmBuffer.writeInt16LE(intSample, i * 2);
-  }
+  const pcmBuffer = Buffer.alloc(totalSamples * 2); // all zeros = pure silence
 
   const header = createWavHeader(pcmBuffer.length, sampleRate, 1, 16);
   const wavBuf = Buffer.concat([header, pcmBuffer]);

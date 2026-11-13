@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import fs from "node:fs";
+import path from "node:path";
 import { generateScenarioFromLp } from "@/lib/ai/gemini";
+import { generateSceneBackgroundImage } from "@/lib/ai/image";
 import { trackUsage } from "@/lib/usage-tracker";
 import { createServiceClient } from "@/lib/supabase/service";
-import { ProjectOptions } from "@/lib/types";
+import { ProjectOptions, SceneData } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,24 +30,56 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const publicGeneratedDir = path.resolve(process.cwd(), "public", "generated");
+    if (!fs.existsSync(publicGeneratedDir)) {
+      fs.mkdirSync(publicGeneratedDir, { recursive: true });
+    }
+
     // 1. Gemini 3.8 Flash でLPを解析しシーン構成を企画・生成
     const scenario = await generateScenarioFromLp({ lpText, options });
+    const timestamp = Date.now();
+    const isVideo = options.quality === "premium_video";
 
-    // 各カットに初期サムネイル画像ファイルとモードを設定
-    scenario.scenes = scenario.scenes.map((sc, idx) => {
-      const fileNum = (idx % 4) + 1;
-      const isVideo = options.quality === "premium_video";
-      return {
+    // 2. 各カットの推奨背景画像（キービジュアル）をAI生成
+    //    Step 2でユーザーに提示し、動画生成プロンプトの元画像として使用
+    const scenesWithImages: SceneData[] = [];
+    for (let idx = 0; idx < scenario.scenes.length; idx++) {
+      const sc = scenario.scenes[idx];
+      const sceneId = idx + 1;
+      const imgFileName = `gen_${timestamp}_s${sceneId}_thumb.png`;
+      const imgRelPath = `generated/${imgFileName}`;
+      const imgFullPath = path.join(publicGeneratedDir, imgFileName);
+
+      let hasCustomImage = false;
+      try {
+        const imgResult = await generateSceneBackgroundImage({
+          bgPrompt: sc.bgPrompt,
+          aspectRatio: scenario.aspectRatio || "16:9",
+          textPlacement: sc.textPlacement || "center",
+          visualTheme: scenario.visualTheme,
+          sceneId,
+        });
+        fs.writeFileSync(imgFullPath, imgResult.imageBuffer);
+        hasCustomImage = true;
+      } catch (imgErr) {
+        console.warn(`[Scenario image generation] scene ${sceneId} fallback:`, imgErr);
+      }
+
+      const finalRelPath = hasCustomImage ? imgRelPath : `generated/scene${(idx % 4) + 1}_bg.png`;
+      const finalUrl = `/${finalRelPath}`;
+
+      scenesWithImages.push({
         ...sc,
-        id: idx + 1,
-        bgFile: isVideo ? `generated/scene${fileNum}_bg.mp4` : `generated/scene${fileNum}_bg.png`,
-        bgThumbnail: `generated/scene${fileNum}_bg.png`,
-        bgUrl: `/generated/scene${fileNum}_bg.png`,
+        id: sceneId,
+        bgThumbnail: finalRelPath,
+        bgUrl: finalUrl,
+        bgFile: isVideo ? `generated/gen_${timestamp}_s${sceneId}_bg.mp4` : finalRelPath,
         bgMode: isVideo ? "video" : "image",
-        audioFile: `generated/scene${fileNum}_audio.wav`,
         frameStyle: sc.frameStyle || (scenario.visualTheme === "dojo-scroll" ? (idx % 2 === 0 ? "makimono" : "byobu") : "glass"),
-      };
-    });
+      });
+    }
+
+    scenario.scenes = scenesWithImages;
 
     // 2. コスト追跡 ＆ クレジット引き落とし (scenario_generation: 20 pts)
     const usageResult = await trackUsage({
